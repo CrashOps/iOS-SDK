@@ -1,0 +1,488 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		7538670D23BCA5610024EB9F /* CrashOps.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7538670323BCA5610024EB9F /* CrashOps.framework */; };
+		7538671223BCA5610024EB9F /* CrashOpsTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7538671123BCA5610024EB9F /* CrashOpsTests.m */; };
+		7538671423BCA5610024EB9F /* CrashOps.h in Headers */ = {isa = PBXBuildFile; fileRef = 7538670623BCA5610024EB9F /* CrashOps.h */; settings = {ATTRIBUTES = (Public, ); }; };
+		7538672C23BCA9330024EB9F /* CrashOps-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = 7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */; };
+		75F04DE523C3826100F65DBF /* CrashOpsUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 75F04DE223C3826100F65DBF /* CrashOpsUtils.m */; };
+		75F04DE623C3826100F65DBF /* CrashOps.m in Sources */ = {isa = PBXBuildFile; fileRef = 75F04DE323C3826100F65DBF /* CrashOps.m */; };
+		75F04DE723C3826100F65DBF /* CrashOpsUtils.h in Headers */ = {isa = PBXBuildFile; fileRef = 75F04DE423C3826100F65DBF /* CrashOpsUtils.h */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXContainerItemProxy section */
+		7538670E23BCA5610024EB9F /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 753866FA23BCA5610024EB9F /* Project object */;
+			proxyType = 1;
+			remoteGlobalIDString = 7538670223BCA5610024EB9F;
+			remoteInfo = CrashOps;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXFileReference section */
+		7538670323BCA5610024EB9F /* CrashOps.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CrashOps.framework; sourceTree = BUILT_PRODUCTS_DIR; };
+		7538670623BCA5610024EB9F /* CrashOps.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CrashOps.h; sourceTree = "<group>"; };
+		7538670C23BCA5610024EB9F /* CrashOpsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CrashOpsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
+		7538671123BCA5610024EB9F /* CrashOpsTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CrashOpsTests.m; sourceTree = "<group>"; };
+		7538671323BCA5610024EB9F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "CrashOps-Bridging-Header.h"; sourceTree = "<group>"; };
+		7538672B23BCA9330024EB9F /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		75F04DE223C3826100F65DBF /* CrashOpsUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOpsUtils.m; sourceTree = "<group>"; };
+		75F04DE323C3826100F65DBF /* CrashOps.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOps.m; sourceTree = "<group>"; };
+		75F04DE423C3826100F65DBF /* CrashOpsUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CrashOpsUtils.h; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		7538670023BCA5610024EB9F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7538670923BCA5610024EB9F /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7538670D23BCA5610024EB9F /* CrashOps.framework in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		753866F923BCA5610024EB9F = {
+			isa = PBXGroup;
+			children = (
+				7538670523BCA5610024EB9F /* CrashOps */,
+				7538671023BCA5610024EB9F /* CrashOpsTests */,
+				7538670423BCA5610024EB9F /* Products */,
+			);
+			sourceTree = "<group>";
+		};
+		7538670423BCA5610024EB9F /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				7538670323BCA5610024EB9F /* CrashOps.framework */,
+				7538670C23BCA5610024EB9F /* CrashOpsTests.xctest */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		7538670523BCA5610024EB9F /* CrashOps */ = {
+			isa = PBXGroup;
+			children = (
+				7538672923BCA9330024EB9F /* SupportingFiles */,
+				7538670623BCA5610024EB9F /* CrashOps.h */,
+				75F04DE323C3826100F65DBF /* CrashOps.m */,
+				75F04DE423C3826100F65DBF /* CrashOpsUtils.h */,
+				75F04DE223C3826100F65DBF /* CrashOpsUtils.m */,
+			);
+			path = CrashOps;
+			sourceTree = "<group>";
+		};
+		7538671023BCA5610024EB9F /* CrashOpsTests */ = {
+			isa = PBXGroup;
+			children = (
+				7538671123BCA5610024EB9F /* CrashOpsTests.m */,
+				7538671323BCA5610024EB9F /* Info.plist */,
+			);
+			path = CrashOpsTests;
+			sourceTree = "<group>";
+		};
+		7538672923BCA9330024EB9F /* SupportingFiles */ = {
+			isa = PBXGroup;
+			children = (
+				7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */,
+				7538672B23BCA9330024EB9F /* Info.plist */,
+			);
+			path = SupportingFiles;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXHeadersBuildPhase section */
+		753866FE23BCA5610024EB9F /* Headers */ = {
+			isa = PBXHeadersBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7538672C23BCA9330024EB9F /* CrashOps-Bridging-Header.h in Headers */,
+				7538671423BCA5610024EB9F /* CrashOps.h in Headers */,
+				75F04DE723C3826100F65DBF /* CrashOpsUtils.h in Headers */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXHeadersBuildPhase section */
+
+/* Begin PBXNativeTarget section */
+		7538670223BCA5610024EB9F /* CrashOps */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7538671723BCA5610024EB9F /* Build configuration list for PBXNativeTarget "CrashOps" */;
+			buildPhases = (
+				753866FE23BCA5610024EB9F /* Headers */,
+				753866FF23BCA5610024EB9F /* Sources */,
+				7538670023BCA5610024EB9F /* Frameworks */,
+				7538670123BCA5610024EB9F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = CrashOps;
+			productName = CrashOps;
+			productReference = 7538670323BCA5610024EB9F /* CrashOps.framework */;
+			productType = "com.apple.product-type.framework";
+		};
+		7538670B23BCA5610024EB9F /* CrashOpsTests */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = 7538671A23BCA5610024EB9F /* Build configuration list for PBXNativeTarget "CrashOpsTests" */;
+			buildPhases = (
+				7538670823BCA5610024EB9F /* Sources */,
+				7538670923BCA5610024EB9F /* Frameworks */,
+				7538670A23BCA5610024EB9F /* Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+				7538670F23BCA5610024EB9F /* PBXTargetDependency */,
+			);
+			name = CrashOpsTests;
+			productName = CrashOpsTests;
+			productReference = 7538670C23BCA5610024EB9F /* CrashOpsTests.xctest */;
+			productType = "com.apple.product-type.bundle.unit-test";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		753866FA23BCA5610024EB9F /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 1120;
+				ORGANIZATIONNAME = "Perry Shalom";
+				TargetAttributes = {
+					7538670223BCA5610024EB9F = {
+						CreatedOnToolsVersion = 11.2.1;
+						LastSwiftMigration = 1120;
+					};
+					7538670B23BCA5610024EB9F = {
+						CreatedOnToolsVersion = 11.2.1;
+					};
+				};
+			};
+			buildConfigurationList = 753866FD23BCA5610024EB9F /* Build configuration list for PBXProject "CrashOps" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+				Base,
+			);
+			mainGroup = 753866F923BCA5610024EB9F;
+			productRefGroup = 7538670423BCA5610024EB9F /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				7538670223BCA5610024EB9F /* CrashOps */,
+				7538670B23BCA5610024EB9F /* CrashOpsTests */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXResourcesBuildPhase section */
+		7538670123BCA5610024EB9F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7538670A23BCA5610024EB9F /* Resources */ = {
+			isa = PBXResourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXResourcesBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		753866FF23BCA5610024EB9F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				75F04DE623C3826100F65DBF /* CrashOps.m in Sources */,
+				75F04DE523C3826100F65DBF /* CrashOpsUtils.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+		7538670823BCA5610024EB9F /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				7538671223BCA5610024EB9F /* CrashOpsTests.m in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin PBXTargetDependency section */
+		7538670F23BCA5610024EB9F /* PBXTargetDependency */ = {
+			isa = PBXTargetDependency;
+			target = 7538670223BCA5610024EB9F /* CrashOps */;
+			targetProxy = 7538670E23BCA5610024EB9F /* PBXContainerItemProxy */;
+		};
+/* End PBXTargetDependency section */
+
+/* Begin XCBuildConfiguration section */
+		7538671523BCA5610024EB9F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.2;
+				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
+				MTL_FAST_MATH = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = iphoneos;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Debug;
+		};
+		7538671623BCA5610024EB9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				COPY_PHASE_STRIP = NO;
+				CURRENT_PROJECT_VERSION = 1;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				IPHONEOS_DEPLOYMENT_TARGET = 13.2;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				MTL_FAST_MATH = YES;
+				SDKROOT = iphoneos;
+				VALIDATE_PRODUCT = YES;
+				VERSIONING_SYSTEM = "apple-generic";
+				VERSION_INFO_PREFIX = "";
+			};
+			name = Release;
+		};
+		7538671823BCA5610024EB9F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = BYQ4J9BT99;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = CrashOps/SupportingFiles/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/CrashOps/SupportingFiles",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.perrchick.crashops.CrashOps;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_OPTIMIZATION_LEVEL = "-Onone";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7538671923BCA5610024EB9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CLANG_ENABLE_MODULES = YES;
+				CODE_SIGN_STYLE = Automatic;
+				DEFINES_MODULE = YES;
+				DEVELOPMENT_TEAM = BYQ4J9BT99;
+				DYLIB_COMPATIBILITY_VERSION = 1;
+				DYLIB_CURRENT_VERSION = 1;
+				DYLIB_INSTALL_NAME_BASE = "@rpath";
+				INFOPLIST_FILE = CrashOps/SupportingFiles/Info.plist;
+				INSTALL_PATH = "$(LOCAL_LIBRARY_DIR)/Frameworks";
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				LIBRARY_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(PROJECT_DIR)/CrashOps/SupportingFiles",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.perrchick.crashops.CrashOps;
+				PRODUCT_NAME = "$(TARGET_NAME:c99extidentifier)";
+				SKIP_INSTALL = YES;
+				SWIFT_OBJC_BRIDGING_HEADER = "";
+				SWIFT_VERSION = 5.0;
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+		7538671B23BCA5610024EB9F /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = BYQ4J9BT99;
+				INFOPLIST_FILE = CrashOpsTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.perrchick.crashops.CrashOpsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Debug;
+		};
+		7538671C23BCA5610024EB9F /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				DEVELOPMENT_TEAM = BYQ4J9BT99;
+				INFOPLIST_FILE = CrashOpsTests/Info.plist;
+				LD_RUNPATH_SEARCH_PATHS = (
+					"$(inherited)",
+					"@executable_path/Frameworks",
+					"@loader_path/Frameworks",
+				);
+				PRODUCT_BUNDLE_IDENTIFIER = com.perrchick.crashops.CrashOpsTests;
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				TARGETED_DEVICE_FAMILY = "1,2";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		753866FD23BCA5610024EB9F /* Build configuration list for PBXProject "CrashOps" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7538671523BCA5610024EB9F /* Debug */,
+				7538671623BCA5610024EB9F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7538671723BCA5610024EB9F /* Build configuration list for PBXNativeTarget "CrashOps" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7538671823BCA5610024EB9F /* Debug */,
+				7538671923BCA5610024EB9F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		7538671A23BCA5610024EB9F /* Build configuration list for PBXNativeTarget "CrashOpsTests" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				7538671B23BCA5610024EB9F /* Debug */,
+				7538671C23BCA5610024EB9F /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = 753866FA23BCA5610024EB9F /* Project object */;
+}
