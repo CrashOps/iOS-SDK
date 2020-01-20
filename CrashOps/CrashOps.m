@@ -33,7 +33,6 @@
 }
 
 - (void)deleteOldReports {
-//    [[CrashOpsUtils shared] deleteOldReports];
     [[KSCrash sharedInstance] deleteAllReports];
 }
 

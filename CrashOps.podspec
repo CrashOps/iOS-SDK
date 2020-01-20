@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.0.64"
+  s.version      = "0.0.65"
   s.summary      = "CrashOps lets you monitor your app's crashes."
 
   # This description is used to generate tags and improve search results.
@@ -58,9 +58,9 @@ Pod::Spec.new do |s|
   #  the deployment target. You can optionally include the target after the platform.
   #
 
-  s.swift_version = '5.0'
+  # s.swift_version = '5.0'
   s.platform = :ios
-  s.ios.deployment_target = '10.0'
+  s.ios.deployment_target = '9.0'
   s.requires_arc = true
 
   #  When using multiple platforms
