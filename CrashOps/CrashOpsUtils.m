@@ -11,10 +11,10 @@
 #import "KSCrashMonitor_NSException.h"
 #include "KSCrashMonitor.h"
 #include "KSCrashMonitorContext.h"
-#import <KSCrash/KSCrash.h>
-#import <KSCrash/KSCrashInstallationStandard.h>
-#import <KSCrash/KSCrashInstallationConsole.h>
-#import <KSCrash/KSCrashInstallationEmail.h>
+#import <KZCrash/KSCrash.h>
+#import <KZCrash/KSCrashInstallationStandard.h>
+#import <KZCrash/KSCrashInstallationConsole.h>
+#import <KZCrash/KSCrashInstallationEmail.h>
 
 typedef void(^ReportsUploadCompletion)(NSArray *reports);
 
