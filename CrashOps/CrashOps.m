@@ -7,7 +7,7 @@
 //
 
 #import "CrashOps.h"
-#import <KSCrash/KSCrash.h>
+#import <KZCrash/KSCrash.h>
 
 // Everything that is decalred here (the implementation file) is considered as PRIVATE FIELDS & METHODS (as long as they're not exported in the header file).
 // Read more at: https://medium.com/@victorleungtw/connection-between-h-and-m-files-in-objective-c-eaf6b7366717
