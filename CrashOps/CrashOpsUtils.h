@@ -13,4 +13,9 @@
  */
 @interface CrashOpsUtils: NSObject
 
+/**
+ *  Determines whether the SDK is enabled or not, it's set to true by default.
+*/
+@property (nonatomic, assign) BOOL isEnabled;
+
 @end

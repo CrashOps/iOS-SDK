@@ -7,6 +7,7 @@
 //
 
 #import "CrashOps.h"
+#import "CrashOpsUtils.h"
 #import <KZCrash/KSCrash.h>
 
 // Everything that is decalred here (the implementation file) is considered as PRIVATE FIELDS & METHODS (as long as they're not exported in the header file).
@@ -22,10 +23,12 @@
 @implementation CrashOps
 
 @synthesize metadata;
+@synthesize isEnabled;
 
 - (instancetype)init {
     self = [super init];
     if (self) {
+        isEnabled = YES;
         metadata = [NSMutableDictionary new];
     }
 
@@ -53,6 +56,11 @@ __strong static CrashOps *_sharedInstance;
     });
     
     return _sharedInstance;
+}
+
+- (void)setIsEnabled:(BOOL)isOn {
+    isEnabled = isOn;
+    ((CrashOpsUtils *)([CrashOpsUtils performSelector: @selector(shared)])).isEnabled = isOn;
 }
 
 + (CrashOps *)shared {
