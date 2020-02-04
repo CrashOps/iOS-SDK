@@ -14,13 +14,20 @@ end
 Then run a `pod install` inside your terminal, or from CocoaPods.app.
 
 
-### How do I choose to disable / enable the SDK?
-By default, the SDK works automatically (plug n' play) as your app runs but you always can control it dynamically or statically to enable / disable its behavior.
+### How do I switch off / on the SDK?
+By default, the SDK runs automatically as your app runs  (plug n' play) but you always can control and enable / disable its behavior with two approaches: dynamically or statically.
 
-**Dynamically:** Programmatically change the value (using code) of the variable:
+**Dynamically:** Programmatically change the value (using code) of the variable `isEnabled` as demonstrated here:
 ```
-CrashOps.shared().isEnabled = false // it's true by default
+// Swift
+CrashOps.shared().isEnabled = false // The default value is 'true'
+
+// Objective-C
+[CrashOps shared].isEnabled = NO; // The default value is 'YES'
+
 ```
 
 
-**Statically:** Add a [CrashOps-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/0.0.66/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOps-info.plist) to your project and the SDK will read it in every app launch (using this method may be overridden by the dynamic approach).
+**Statically:** Add a [CrashOps-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/0.0.66/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOps-info.plist) to your project and the SDK will read it in every app launch (using this method can still be overridden by the dynamic approach).
+
+Enjoy!
