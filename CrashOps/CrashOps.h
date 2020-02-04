@@ -33,6 +33,12 @@ typedef void(^PreviousReportsHandler)(NSArray *reports);
 @property (nonatomic, assign) NSUncaughtExceptionHandler *appExceptionHandler;
 
 /**
+ *  Determines whether the SDK is enabled or not, it's set to true by default.
+ *  This value may also be optionally changed via the 'CrashOps-info.plist' file.
+*/
+@property (nonatomic, assign) BOOL isEnabled;
+
+/**
  *  Enables adding metadata to each report, this data will be available under the "User" key.
 */
 @property (nonatomic, strong) NSMutableDictionary *metadata;

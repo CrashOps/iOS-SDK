@@ -11,9 +11,9 @@
 		7538671223BCA5610024EB9F /* CrashOpsTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7538671123BCA5610024EB9F /* CrashOpsTests.m */; };
 		7538671423BCA5610024EB9F /* CrashOps.h in Headers */ = {isa = PBXBuildFile; fileRef = 7538670623BCA5610024EB9F /* CrashOps.h */; settings = {ATTRIBUTES = (Public, ); }; };
 		7538672C23BCA9330024EB9F /* CrashOps-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = 7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */; };
-		75F04DE523C3826100F65DBF /* CrashOpsUtils.m in Sources */ = {isa = PBXBuildFile; fileRef = 75F04DE223C3826100F65DBF /* CrashOpsUtils.m */; };
+		75F04DE523C3826100F65DBF /* CrashOpsController.m in Sources */ = {isa = PBXBuildFile; fileRef = 75F04DE223C3826100F65DBF /* CrashOpsController.m */; };
 		75F04DE623C3826100F65DBF /* CrashOps.m in Sources */ = {isa = PBXBuildFile; fileRef = 75F04DE323C3826100F65DBF /* CrashOps.m */; };
-		75F04DE723C3826100F65DBF /* CrashOpsUtils.h in Headers */ = {isa = PBXBuildFile; fileRef = 75F04DE423C3826100F65DBF /* CrashOpsUtils.h */; };
+		75F04DE723C3826100F65DBF /* CrashOpsController.h in Headers */ = {isa = PBXBuildFile; fileRef = 75F04DE423C3826100F65DBF /* CrashOpsController.h */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -34,9 +34,9 @@
 		7538671323BCA5610024EB9F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "CrashOps-Bridging-Header.h"; sourceTree = "<group>"; };
 		7538672B23BCA9330024EB9F /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		75F04DE223C3826100F65DBF /* CrashOpsUtils.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOpsUtils.m; sourceTree = "<group>"; };
+		75F04DE223C3826100F65DBF /* CrashOpsController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOpsController.m; sourceTree = "<group>"; };
 		75F04DE323C3826100F65DBF /* CrashOps.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOps.m; sourceTree = "<group>"; };
-		75F04DE423C3826100F65DBF /* CrashOpsUtils.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CrashOpsUtils.h; sourceTree = "<group>"; };
+		75F04DE423C3826100F65DBF /* CrashOpsController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CrashOpsController.h; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -82,8 +82,8 @@
 				7538672923BCA9330024EB9F /* SupportingFiles */,
 				7538670623BCA5610024EB9F /* CrashOps.h */,
 				75F04DE323C3826100F65DBF /* CrashOps.m */,
-				75F04DE423C3826100F65DBF /* CrashOpsUtils.h */,
-				75F04DE223C3826100F65DBF /* CrashOpsUtils.m */,
+				75F04DE423C3826100F65DBF /* CrashOpsController.h */,
+				75F04DE223C3826100F65DBF /* CrashOpsController.m */,
 			);
 			path = CrashOps;
 			sourceTree = "<group>";
@@ -115,7 +115,7 @@
 			files = (
 				7538672C23BCA9330024EB9F /* CrashOps-Bridging-Header.h in Headers */,
 				7538671423BCA5610024EB9F /* CrashOps.h in Headers */,
-				75F04DE723C3826100F65DBF /* CrashOpsUtils.h in Headers */,
+				75F04DE723C3826100F65DBF /* CrashOpsController.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -218,7 +218,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				75F04DE623C3826100F65DBF /* CrashOps.m in Sources */,
-				75F04DE523C3826100F65DBF /* CrashOpsUtils.m in Sources */,
+				75F04DE523C3826100F65DBF /* CrashOpsController.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
