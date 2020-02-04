@@ -7,7 +7,7 @@
 //
 
 #import "CrashOps.h"
-#import "CrashOpsUtils.h"
+#import "CrashOpsController.h"
 #import <KZCrash/KSCrash.h>
 
 // Everything that is decalred here (the implementation file) is considered as PRIVATE FIELDS & METHODS (as long as they're not exported in the header file).
@@ -60,7 +60,7 @@ __strong static CrashOps *_sharedInstance;
 
 - (void)setIsEnabled:(BOOL)isOn {
     isEnabled = isOn;
-    ((CrashOpsUtils *)([CrashOpsUtils performSelector: @selector(shared)])).isEnabled = isOn;
+    ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).isEnabled = isOn;
 }
 
 + (CrashOps *)shared {

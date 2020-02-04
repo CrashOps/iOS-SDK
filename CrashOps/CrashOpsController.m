@@ -1,5 +1,5 @@
 //
-//  CrashOpsUtils.m
+//  CrashOpsController.m
 //  CrashOps
 //
 //  Created by CrashOps on 01/01/2020.
@@ -7,7 +7,7 @@
 //
 
 #import "CrashOps.h"
-#import "CrashOpsUtils.h"
+#import "CrashOpsController.h"
 #import "KSCrashMonitor_NSException.h"
 #include "KSCrashMonitor.h"
 #include "KSCrashMonitorContext.h"
@@ -21,7 +21,7 @@
 
 typedef void(^ReportsUploadCompletion)(NSArray *reports);
 
-@interface CrashOpsUtils()
+@interface CrashOpsController()
 
 @property (nonatomic, strong) NSString *libraryPath;
 @property (nonatomic, strong) NSObject *appFinishedLaunchObserver;
@@ -33,7 +33,7 @@ typedef void(^ReportsUploadCompletion)(NSArray *reports);
 
 @end
 
-@implementation CrashOpsUtils
+@implementation CrashOpsController
 
 @synthesize libraryPath;
 @synthesize appFinishedLaunchObserver;
@@ -47,11 +47,11 @@ typedef void(^ReportsUploadCompletion)(NSArray *reports);
 NSUncaughtExceptionHandler *oldHandler;
 
 // Singleton implementation in Objective-C
-__strong static CrashOpsUtils *_shared;
-+ (CrashOpsUtils *) shared {
+__strong static CrashOpsController *_shared;
++ (CrashOpsController *) shared {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        _shared = [[CrashOpsUtils alloc] init];
+        _shared = [[CrashOpsController alloc] init];
     });
     
     return _shared;
@@ -164,8 +164,8 @@ __strong static CrashOpsUtils *_shared;
 -(void) onAppLoaded {
     // Wait for app to finish launch and then...
     appFinishedLaunchObserver = [[NSNotificationCenter defaultCenter] addObserverForName: UIApplicationDidFinishLaunchingNotification object: nil queue: nil usingBlock:^(NSNotification * _Nonnull note) {
-        [CrashOpsUtils shared].didAppFinishLaunching = YES;
-        [[CrashOpsUtils shared] onAppLaunched];
+        [CrashOpsController shared].didAppFinishLaunching = YES;
+        [[CrashOpsController shared] onAppLaunched];
     }];
 
     NSString *infoPlistPath = [[NSBundle mainBundle] pathForResource:@"CrashOps-info" ofType:@"plist"];
@@ -191,11 +191,11 @@ __strong static CrashOpsUtils *_shared;
 
     BOOL isEnabled = config_isEnabled;
     
-    if (CrashOpsUtils.isRunningInDebugMode && config_isDisabledOnDebug) {
+    if (CrashOpsController.isRunningInDebugMode && config_isDisabledOnDebug) {
         isEnabled = NO;
     }
 
-    if (!CrashOpsUtils.isRunningInDebugMode && config_isDisabledOnRelease) {
+    if (!CrashOpsController.isRunningInDebugMode && config_isDisabledOnRelease) {
         isEnabled = NO;
     }
 
@@ -203,12 +203,12 @@ __strong static CrashOpsUtils *_shared;
 }
 
 - (void) onAppLaunched {
-    [[NSNotificationCenter defaultCenter] removeObserver: [[CrashOpsUtils shared] appFinishedLaunchObserver]];
+    [[NSNotificationCenter defaultCenter] removeObserver: [[CrashOpsController shared] appFinishedLaunchObserver]];
 
-    //NSLog(@"App loaded, isJailbroken = %d", CrashOpsUtils.isJailbroken);
+    //NSLog(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [[CrashOpsUtils shared] uploadLogs];
+        [[CrashOpsController shared] uploadLogs];
     });
 }
 
@@ -224,7 +224,7 @@ __strong static CrashOpsUtils *_shared;
         NSString *basePath = [[KSCrash sharedInstance] performSelector: @selector(basePath)];
         NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Reports"];
         
-        [[[CrashOpsUtils shared] coGlobalOperationQueue] addOperationWithBlock:^{
+        [[[CrashOpsController shared] coGlobalOperationQueue] addOperationWithBlock:^{
         if ([[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
             NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: reportsPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
 
@@ -270,7 +270,7 @@ __strong static CrashOpsUtils *_shared;
                         NSString *returnString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
                         NSLog(@"%@", returnString);
                         
-                        NSDictionary *jsonDictionary = [CrashOpsUtils toJsonDictionary: reportJson];
+                        NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: reportJson];
                         [sentReports addObject: jsonDictionary];
 
                         [uploadTasks removeLastObject];
@@ -300,7 +300,7 @@ __strong static CrashOpsUtils *_shared;
         metadata = [NSDictionary new];
     }
 
-    handler.userInfo = @{@"hostAppInfo": metadata, @"deviceInfo": [CrashOpsUtils getDeviceInfo]};
+    handler.userInfo = @{@"hostAppInfo": metadata, @"deviceInfo": [CrashOpsController getDeviceInfo]};
     
     if ([CrashOps shared].excludeClassesDetails) {
         // Do not introspect these classes
@@ -333,10 +333,10 @@ __strong static CrashOpsUtils *_shared;
 
         NSError *error;
 
-        NSString *toJsonString = [CrashOpsUtils toJsonString: jsonReport];
+        NSString *toJsonString = [CrashOpsController toJsonString: jsonReport];
         NSLog(@"%@", toJsonString);
 
-        NSData *jsonData = [CrashOpsUtils toJsonData: jsonReport];
+        NSData *jsonData = [CrashOpsController toJsonData: jsonReport];
 
         BOOL didWrite = [jsonData writeToFile: [[self crashOpsLibraryPath] stringByAppendingPathComponent: nowString] options: NSDataWritingAtomic error: &error];
         if (!didWrite || error) {
@@ -373,7 +373,7 @@ __strong static CrashOpsUtils *_shared;
 }
 
 static void ourExceptionHandler(NSException *exception) {
-    [[CrashOpsUtils shared] handleException: exception];
+    [[CrashOpsController shared] handleException: exception];
 }
 
 +(NSString *) toJsonString:(NSDictionary *) jsonDictionary {
@@ -406,7 +406,7 @@ static void ourExceptionHandler(NSException *exception) {
 NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 
 + (void)load {
-    [[CrashOpsUtils shared] onAppLoaded];
+    [[CrashOpsController shared] onAppLoaded];
 }
 
 +(void)initialize {
@@ -419,7 +419,7 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
     uname(&un);
 
     // Discussion: These two strings are different...
-//    NSLog([CrashOpsUtils advertisingIdentifierString]);
+//    NSLog([CrashOpsController advertisingIdentifierString]);
 //    NSLog([[device identifierForVendor] UUIDString]);
 
     return @{
@@ -429,7 +429,7 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
       @"model" : [device model],
       @"localizedModel" : [device localizedModel],
       @"identifierForVendor" : [[device identifierForVendor] UUIDString],
-      @"isPhysicalDevice" : CrashOpsUtils.isRunningOnSimulator ? @"false" : @"true",
+      @"isPhysicalDevice" : CrashOpsController.isRunningOnSimulator ? @"false" : @"true",
       @"utsname" : @{
         @"sysname" : @(un.sysname),
         @"nodename" : @(un.nodename),
