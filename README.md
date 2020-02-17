@@ -1,9 +1,11 @@
 # CrashOps iOS SDK
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![](https://img.shields.io/cocoapods/p/CrashOps.svg?style=flat)](https://cocoapods.org/pods/CrashOps) 
 
 This SDK will help you monitor your iOS app's crashes.
 
 
 ## Install via CocoaPods
+[![](https://img.shields.io/cocoapods/v/CrashOps.svg?style=flat)](https://cocoapods.org/pods/CrashOps)
 
 You want to add `pod 'CrashOps'` similar to the following to your Podfile:
 ```
