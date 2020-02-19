@@ -22,6 +22,7 @@
 
 @implementation CrashOps
 
+@synthesize clientId;
 @synthesize metadata;
 @synthesize isEnabled;
 
@@ -29,6 +30,7 @@
     self = [super init];
     if (self) {
         isEnabled = YES;
+        clientId = @"";
         metadata = [NSMutableDictionary new];
     }
 
@@ -41,6 +43,10 @@
 
 - (void)throwException {
     [NSException raise:@"CrashOps test exception" format: @""];
+}
+
+- (BOOL) logError:(NSDictionary *)errorDetails {
+    return [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) logError: errorDetails];
 }
 
 - (void)crash {
@@ -56,6 +62,25 @@ __strong static CrashOps *_sharedInstance;
     });
     
     return _sharedInstance;
+}
+
+- (void)setPreviousCrashReports:(PreviousReportsHandler) handler {
+    _previousCrashReports = handler;
+
+    [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) onChangedHandler];
+}
+
+- (void)setClientId:(NSString *)crashOpsClientId {
+    if (![crashOpsClientId length]) {
+        return;
+    }
+
+    if ([crashOpsClientId length] > 100) {
+        return;
+    }
+
+    clientId = crashOpsClientId;
+    ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).clientId = clientId;
 }
 
 - (void)setIsEnabled:(BOOL)isOn {

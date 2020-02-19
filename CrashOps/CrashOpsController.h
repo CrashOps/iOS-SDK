@@ -14,8 +14,23 @@
 @interface CrashOpsController: NSObject
 
 /**
+ *  The client ID received by CrashOps customer services.
+*/
+@property (nonatomic, strong) NSString *clientId;
+
+/**
  *  Determines whether the SDK is enabled or not, it's set to true by default.
 */
 @property (nonatomic, assign) BOOL isEnabled;
+
+/**
+*  Logs non-fatal errors.
+*/
+- (BOOL) logError:(NSDictionary *) errorDetails;
+
+/**
+*  Helps to log non-fatal errors.
+*/
+- (void) onChangedHandler;
 
 @end
