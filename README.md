@@ -30,6 +30,6 @@ CrashOps.shared().isEnabled = false // The default value is 'true'
 ```
 
 
-**Statically:** Add a [CrashOps-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/0.0.66/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOps-info.plist) to your project and the SDK will read it in every app launch (using this method can still be overridden by the dynamic approach).
+**Statically:** Add a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/26aac1ae65eaba100f749a57f4e49665c1837429/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist) to your project and the SDK will read it in every app launch (using this method can still be overridden by the dynamic approach).
 
 Enjoy!
