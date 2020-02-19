@@ -16,8 +16,8 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.0.66"
-  s.summary      = "CrashOps lets you monitor your app's crashes."
+  s.version      = "0.0.67"
+  s.summary      = "CrashOps helps you monitor your app's stability."
 
   # This description is used to generate tags and improve search results.
   #   * Think: What does it do? Why did you write it? What is the focus?
@@ -26,7 +26,7 @@ Pod::Spec.new do |s|
   #   * Finally, don't worry about the indent, CocoaPods strips it!
   s.description  = "CrashOps lets you monitor your app's crashes."
 
-  s.homepage     = "https://github.com/CrashOps"
+  s.homepage     = "https://github.com/CrashOps/iOS-SDK"
   # s.screenshots  = "www.example.com/screenshots_1.gif", "www.example.com/screenshots_2.gif"
 
 
@@ -60,7 +60,7 @@ Pod::Spec.new do |s|
 
   # s.swift_version = '5.0'
   s.platform = :ios
-  s.ios.deployment_target = '9.0'
+  s.ios.deployment_target = '8.0'
   s.requires_arc = true
 
   #  When using multiple platforms

@@ -43,6 +43,7 @@ typedef void(^ReportsUploadCompletion)(NSArray *reports);
 @synthesize didAppFinishLaunching;
 @synthesize didBeginUpload;
 @synthesize crashMonitorAPI;
+@synthesize clientId;
 
 NSUncaughtExceptionHandler *oldHandler;
 
@@ -125,6 +126,20 @@ __strong static CrashOpsController *_shared;
 #endif
 }
 
+- (void)setClientId:(NSString *)crashOpsClientId {
+    if (![crashOpsClientId length]) {
+        return;
+    }
+
+    if ([crashOpsClientId length] > 100) {
+        return;
+    }
+
+    clientId = crashOpsClientId;
+
+    [self uploadLogs];
+}
+
 - (void) setIsEnabled:(BOOL)isOn {
     if (isEnabled_Optional != nil && isEnabled == isOn) return;
 
@@ -150,6 +165,8 @@ __strong static CrashOpsController *_shared;
             crashMonitorAPI->setEnabled(YES);
             /* Perry's additions to help with tests */
         }
+
+        [self uploadLogs];
     } else {
         if (oldHandler != nil) {
             NSSetUncaughtExceptionHandler(oldHandler);
@@ -161,6 +178,20 @@ __strong static CrashOpsController *_shared;
     }
 }
 
+- (BOOL) logError:(NSDictionary *) errorDetails {
+    if (!errorDetails) return NO;
+    if (![errorDetails count]) return NO;
+
+    NSTimeInterval timeMilliseconds = [[NSDate date] timeIntervalSince1970] * 1000;
+    NSInteger timestamp = ((NSInteger) timeMilliseconds);
+    NSString *basePath = [[KSCrash sharedInstance] performSelector: @selector(basePath)];
+    NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Errors"];
+    NSString *filePath = [reportsPath stringByAppendingPathComponent: [NSString stringWithFormat:@"error_%ld.log", (long) timestamp]];
+
+    NSData *errorData = [NSKeyedArchiver archivedDataWithRootObject: errorDetails];
+    return [errorData writeToFile: filePath atomically: YES];
+}
+
 -(void) onAppLoaded {
     // Wait for app to finish launch and then...
     appFinishedLaunchObserver = [[NSNotificationCenter defaultCenter] addObserverForName: UIApplicationDidFinishLaunchingNotification object: nil queue: nil usingBlock:^(NSNotification * _Nonnull note) {
@@ -168,8 +199,13 @@ __strong static CrashOpsController *_shared;
         [[CrashOpsController shared] onAppLaunched];
     }];
 
-    NSString *infoPlistPath = [[NSBundle mainBundle] pathForResource:@"CrashOps-info" ofType:@"plist"];
+    NSString *infoPlistPath = [[NSBundle mainBundle] pathForResource:@"CrashOpsConfig-info" ofType:@"plist"];
     NSDictionary* infoPlist = [NSDictionary dictionaryWithContentsOfFile: infoPlistPath];
+
+    NSString* clientId = infoPlist[@"clientId"];
+    if (clientId == nil) {
+        clientId = @"";
+    }
 
     NSString* isDisabledOnRelease = infoPlist[@"isDisabledOnRelease"];
     if (isDisabledOnRelease == nil) {
@@ -200,6 +236,7 @@ __strong static CrashOpsController *_shared;
     }
 
     [CrashOps shared].isEnabled = isEnabled;
+    [CrashOps shared].clientId = clientId;
 }
 
 - (void) onAppLaunched {
@@ -217,7 +254,7 @@ __strong static CrashOpsController *_shared;
 // ======================================================================
 - (void) uploadLogs {
     if (![CrashOps shared].isEnabled) return;
-    if (didBeginUpload) return;
+//    if (didBeginUpload) return;
     didBeginUpload = true;
 
     if ([[KSCrash sharedInstance] respondsToSelector: @selector(basePath)]) {
@@ -225,61 +262,100 @@ __strong static CrashOpsController *_shared;
         NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Reports"];
         
         [[[CrashOpsController shared] coGlobalOperationQueue] addOperationWithBlock:^{
-        if ([[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
-            NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: reportsPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+            NSString *clientId = CrashOps.shared.clientId;
+            if (!(clientId && [clientId length] > 0 && [clientId length] < 100)) {
+                clientId = nil;
+            }
 
-                NSMutableArray *allReports = [NSMutableArray new];
+            if ([[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
+                NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: reportsPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+
+                NSMutableDictionary *allReports = [NSMutableDictionary new];
 
                 for (NSURL *logFileUrlPath in filesList) {
                     NSLog(@"%@", logFileUrlPath);
-                    
+
                     NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
-                    [allReports addObject: logFileJson];
+                    [allReports setObject:logFileJson forKey:logFileUrlPath];
                 }
 
                 NSMutableArray *uploadTasks = [NSMutableArray new];
                 // An old fashion, simplified, "synchronizer" :)
-                ReportsUploadCompletion completion = ^void(NSArray* reports) {
-                    if ([reports count] > 0 && [CrashOps shared].previousCrashReports) {
+                ReportsUploadCompletion completion = ^void(NSArray* reportPaths) {
+                    if ([reportPaths count] > 0 && [CrashOps shared].previousCrashReports) {
                         if (![CrashOps shared].isEnabled) return;
 
+                        NSMutableArray* reportDictionaries = [NSMutableArray new];
+                        for (NSURL *reportPath in allReports) {
+                            NSString *reportJson = allReports[reportPath];
+
+                            if (reportJson) {
+                                NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: reportJson];
+
+                                [reportDictionaries addObject: jsonDictionary];
+                                NSError *error;
+                                [[NSFileManager defaultManager] removeItemAtURL: reportPath error: &error];
+                                if (error) {
+                                    // TODO: Report this to our private analytics tool
+                                    NSLog(@"Failed to delete report file, error: %@", error);
+                                }
+                            }
+                        }
+
                         [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-                            [CrashOps shared].previousCrashReports(reports);
+                            [CrashOps shared].previousCrashReports(reportDictionaries);
                         }];
                     }
                 };
 
                 NSMutableArray *sentReports = [NSMutableArray new];
+                NSString *serverUrlString = @"https://us-central1-crash-logs.cloudfunctions.net/storeCrashReport";
 
-                for (NSString *reportJson in allReports) {
-                    NSString *serverUrlString = @"https://us-central1-crash-logs.cloudfunctions.net/storeCrashReport";
-                    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
-                    [request setURL:[NSURL URLWithString: serverUrlString]];
-                    [request setHTTPMethod:@"POST"];
+                for (NSURL *reportPath in allReports) {
+                    NSString *reportJson = allReports[reportPath];
+                    if (clientId) {
+                        NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
+                        [request setURL:[NSURL URLWithString: serverUrlString]];
+                        [request setHTTPMethod: @"POST"];
 
-                    NSMutableData *body = [NSMutableData data];
+                        NSMutableData *body = [NSMutableData data];
 
-                    NSString *contentType = [NSString stringWithFormat:@"application/json; charset=utf-8"];
-                    [request addValue:contentType forHTTPHeaderField:@"Content-Type"];
+                        NSString *contentType = [NSString stringWithFormat:@"application/json; charset=utf-8"];
+                        [request addValue:contentType forHTTPHeaderField:@"Content-Type"];
+                        [request addValue: clientId forHTTPHeaderField:@"crashops-client-id"];
 
-                    [body appendData:[[NSString stringWithString: reportJson] dataUsingEncoding: NSUTF8StringEncoding]];
+                        [body appendData:[[NSString stringWithString: reportJson] dataUsingEncoding: NSUTF8StringEncoding]];
 
-                    [request setHTTPBody:body];
+                        [request setHTTPBody: body];
 
-                    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-                        NSString *returnString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
-                        NSLog(@"%@", returnString);
-                        
+                        NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+                            NSString *returnString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
+                            NSLog(@"%@", returnString);
+
+                            BOOL wasRequestSuccessful = false;
+                            if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
+                                wasRequestSuccessful = ((NSHTTPURLResponse *)response).statusCode > 200 && ((NSHTTPURLResponse *)response).statusCode < 300;
+                            }
+
+                            if (wasRequestSuccessful) {
+                                [sentReports addObject: reportPath];
+                            }
+
+                            [uploadTasks removeLastObject];
+                            if (uploadTasks.count == 0) {
+                                completion(sentReports);
+                            }
+                        }];
+
+                        [uploadTasks addObject: task];
+                    } else {
                         NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: reportJson];
                         [sentReports addObject: jsonDictionary];
-
-                        [uploadTasks removeLastObject];
-                        if (uploadTasks.count == 0) {
-                            completion(sentReports);
-                        }
-                    }];
-                    
-                    [uploadTasks addObject: task];
+                    }
+                }
+                
+                if (!clientId) {
+                    completion(sentReports);
                 }
 
                 for (NSURLSessionDataTask *uploadTask in uploadTasks) {

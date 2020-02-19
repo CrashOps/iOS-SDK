@@ -33,8 +33,13 @@ typedef void(^PreviousReportsHandler)(NSArray *reports);
 @property (nonatomic, assign) NSUncaughtExceptionHandler *appExceptionHandler;
 
 /**
+ *  The client ID received by CrashOps customer services.
+*/
+@property (nonatomic, strong) NSString *clientId;
+
+/**
  *  Determines whether the SDK is enabled or not, it's set to true by default.
- *  This value may also be optionally changed via the 'CrashOps-info.plist' file.
+ *  This value may also be optionally changed via the 'CrashOpsConfig-info.plist' file.
 */
 @property (nonatomic, assign) BOOL isEnabled;
 
@@ -66,12 +71,17 @@ typedef void(^PreviousReportsHandler)(NSArray *reports);
 /**
  *  Causes a crash for testing purposes.
  */
-- (void)crash;
+-(void) crash;
 
 /**
  *  Causes a crash due to exception for testing purposes.
  */
-- (void)throwException;
+-(void) throwException;
+
+/**
+*  Logs non-fatal errors.
+*/
+-(BOOL) logError:(NSDictionary *) errorDetails;
 
 @end
 
