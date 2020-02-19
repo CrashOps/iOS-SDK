@@ -28,4 +28,9 @@
 */
 - (BOOL) logError:(NSDictionary *) errorDetails;
 
+/**
+*  Helps to log non-fatal errors.
+*/
+- (void) onChangedHandler;
+
 @end

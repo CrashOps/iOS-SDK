@@ -64,6 +64,12 @@ __strong static CrashOps *_sharedInstance;
     return _sharedInstance;
 }
 
+- (void)setPreviousCrashReports:(PreviousReportsHandler) handler {
+    _previousCrashReports = handler;
+
+    [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) onChangedHandler];
+}
+
 - (void)setClientId:(NSString *)crashOpsClientId {
     if (![crashOpsClientId length]) {
         return;

@@ -126,6 +126,10 @@ __strong static CrashOpsController *_shared;
 #endif
 }
 
+- (void)onChangedHandler {
+    [self uploadLogs];
+}
+
 - (void)setClientId:(NSString *)crashOpsClientId {
     if (![crashOpsClientId length]) {
         return;
@@ -305,6 +309,13 @@ __strong static CrashOpsController *_shared;
                         [[NSOperationQueue mainQueue] addOperationWithBlock:^{
                             [CrashOps shared].previousCrashReports(reportDictionaries);
                         }];
+                    } else if ([reportPaths count] > 0) {
+                        // Considered waiting to the first VC to appear (https://spin.atomicobject.com/2014/12/30/method-swizzling-objective-c/) but it's also won't solve all cases by the various developers out there.
+
+                        NSLog(@"Waiting to the host app's handler to be set...");
+//                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+//                            [[CrashOpsController shared] uploadLogs]; // Bad solution, we won't use this solution for example...
+//                        });
                     }
                 };
 

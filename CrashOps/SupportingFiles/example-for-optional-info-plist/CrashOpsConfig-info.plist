@@ -8,5 +8,7 @@
 	<false/>
 	<key>isDisabledOnDebug</key>
 	<false/>
+	<key>clientId</key>
+	<string></string>
 </dict>
 </plist>
