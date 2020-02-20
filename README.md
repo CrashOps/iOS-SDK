@@ -1,5 +1,5 @@
 # CrashOps iOS SDK
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![](https://img.shields.io/cocoapods/p/CrashOps.svg?style=flat)](https://cocoapods.org/pods/CrashOps) 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![](https://img.shields.io/cocoapods/p/CrashOps.svg?style=flat)](https://cocoapods.org/pods/CrashOps)
 
 This SDK will help you monitor your iOS app's crashes.
 
@@ -29,6 +29,9 @@ CrashOps.shared().isEnabled = false // The default value is 'true'
 
 ```
 
+### Acknowledgments
+
+This SDK produces advanced error crash reports by using [KZCrash](https://github.com/perrzick/KZCrash) which originally forked from the awesome [KSCrash](https://github.com/kstenerud/KSCrash) library.
 
 **Statically:** Add a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/26aac1ae65eaba100f749a57f4e49665c1837429/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist) to your project and the SDK will read it in every app launch (using this method can still be overridden by the dynamic approach).
 
