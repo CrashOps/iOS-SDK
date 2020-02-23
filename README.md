@@ -20,10 +20,12 @@ Then run a `pod install` inside your terminal, or from CocoaPods.app.
 By default, the SDK runs automatically as your app runs  (plug n' play) but you always can control and enable / disable its behavior with two approaches: dynamically or statically.
 
 **Dynamically:** Programmatically change the value (using code) of the variable `isEnabled` as demonstrated here:
-```
+```swift
 // Swift
 CrashOps.shared().isEnabled = false // The default value is 'true'
+```
 
+```objective-c
 // Objective-C
 [CrashOps shared].isEnabled = NO; // The default value is 'YES'
 
