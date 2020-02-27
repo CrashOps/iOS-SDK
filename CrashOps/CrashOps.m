@@ -20,6 +20,12 @@
 
 @end
 
+static BOOL isInitialized = NO;
+static NSString * const lock = @"co_locker";
+
+#define DebugLog(msg) if (CrashOps.isDebugModeRunning) { NSLog(msg); }
+#define DebugLogArgs(msg, args) if (CrashOps.isDebugModeRunning) { NSLog(msg, args); }
+
 @implementation CrashOps
 
 @synthesize clientId;
@@ -28,13 +34,24 @@
 
 - (instancetype)init {
     self = [super init];
+
     if (self) {
         isEnabled = YES;
         clientId = @"";
         metadata = [NSMutableDictionary new];
     }
 
-    return self;
+    CrashOps* sdkInstance;
+    @synchronized(lock) {
+        if (isInitialized) {
+            sdkInstance = [CrashOps shared];
+        } else {
+            isInitialized = YES;
+            sdkInstance = self;
+        }
+    }
+    
+    return sdkInstance;
 }
 
 - (void)deleteOldReports {
@@ -47,6 +64,14 @@
 
 - (BOOL) logError:(NSDictionary *)errorDetails {
     return [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) logError: errorDetails];
+}
+
++(BOOL)isDebugModeRunning {
+#ifdef DEBUG
+    return YES;
+#else
+    return NO;
+#endif
 }
 
 - (void)crash {
@@ -93,11 +118,17 @@ __strong static CrashOps *_sharedInstance;
 }
 
 + (void)load {
-    NSLog(@"Class loaded");
+    DebugLog(@"Class loaded");
 }
 
 +(void)initialize {
-    NSLog(@"App loaded");
+    DebugLog(@"App loaded");
 }
 
 @end
+
+//! Project version number for CrashOps.
+//double CrashOpsVersionNumber = 0.00811;
+
+//! Project version string for CrashOps.
+//const unsigned char CrashOpsVersionString[] = "0.0.811";

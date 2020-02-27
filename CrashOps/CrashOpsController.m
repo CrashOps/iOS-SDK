@@ -23,6 +23,7 @@ typedef void(^ReportsUploadCompletion)(NSArray *reports);
 
 @interface CrashOpsController()
 
+@property (nonatomic, strong) NSUserDefaults *userDefaults;
 @property (nonatomic, strong) NSString *libraryPath;
 @property (nonatomic, strong) NSString *errorsPath;
 @property (nonatomic, strong) NSObject *appFinishedLaunchObserver;
@@ -33,6 +34,12 @@ typedef void(^ReportsUploadCompletion)(NSArray *reports);
 @property (nonatomic, assign) BOOL didBeginUpload;
 
 @end
+
+static NSString * const kClientId = @"co_ClientId";
+static NSString * const kSdkIdentifier = @"com.crashops.sdk";
+
+#define DebugLog(msg) if (CrashOps.isDebugModeRunning) { NSLog(msg); }
+#define DebugLogArgs(msg, args) if (CrashOps.isDebugModeRunning) { NSLog(msg, args); }
 
 @implementation CrashOpsController
 
@@ -46,6 +53,7 @@ typedef void(^ReportsUploadCompletion)(NSArray *reports);
 @synthesize didBeginUpload;
 @synthesize crashMonitorAPI;
 @synthesize clientId;
+@synthesize userDefaults;
 
 NSUncaughtExceptionHandler *oldHandler;
 
@@ -65,6 +73,8 @@ __strong static CrashOpsController *_shared;
         coGlobalOperationQueue = [[NSOperationQueue alloc] init];
         didBeginUpload = NO;
         isEnabled = YES;
+        userDefaults = [[NSUserDefaults alloc] initWithSuiteName: kSdkIdentifier];
+        clientId = [[self userDefaults] stringForKey: kClientId];
     }
 
     return self;
@@ -73,13 +83,6 @@ __strong static CrashOpsController *_shared;
 /**
  Using conditional compilation flags: https://miqu.me/blog/2016/07/31/xcode-8-new-build-settings-and-analyzer-improvements/
  */
-+(BOOL)isRunningInDebugMode {
-#ifdef DEBUG
-    return YES;
-#else
-    return NO;
-#endif
-}
 
 // That's new to me, taken from: https://medium.com/@pinmadhon/how-to-check-your-app-is-installed-on-a-jailbroken-device-67fa0170cf56
 +(BOOL)isJailbroken {
@@ -142,6 +145,7 @@ __strong static CrashOpsController *_shared;
     }
 
     clientId = crashOpsClientId;
+    [[self userDefaults] setObject: clientId forKey: kClientId];
 
     [self uploadLogs];
 }
@@ -200,9 +204,9 @@ __strong static CrashOpsController *_shared;
 
     BOOL didSave = [errorData writeToFile: filePath options: NSDataWritingAtomic error: &error];
     if (!didSave || error) {
-        NSLog(@"Failed to save log with error %@", error);
+        DebugLogArgs(@"Failed to save log with error %@", error);
     } else {
-        NSLog(@"Log saved.");
+        DebugLog(@"Log saved.");
     }
 
     if (didSave) {
@@ -210,6 +214,11 @@ __strong static CrashOpsController *_shared;
     }
 
     return didSave;
+}
+
+// TODO: Report this to our private analytics tool
+- (void)reportInternalError:(NSString *) sdkError {
+    DebugLogArgs(@"%@", sdkError);
 }
 
 -(void) onAppLoaded {
@@ -247,11 +256,11 @@ __strong static CrashOpsController *_shared;
 
     BOOL isEnabled = config_isEnabled;
     
-    if (CrashOpsController.isRunningInDebugMode && config_isDisabledOnDebug) {
+    if (CrashOps.isDebugModeRunning && config_isDisabledOnDebug) {
         isEnabled = NO;
     }
 
-    if (!CrashOpsController.isRunningInDebugMode && config_isDisabledOnRelease) {
+    if (!CrashOps.isDebugModeRunning && config_isDisabledOnRelease) {
         isEnabled = NO;
     }
 
@@ -262,7 +271,7 @@ __strong static CrashOpsController *_shared;
 - (void) onAppLaunched {
     [[NSNotificationCenter defaultCenter] removeObserver: [[CrashOpsController shared] appFinishedLaunchObserver]];
 
-    //NSLog(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
+    //DebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
 
     dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
         [[CrashOpsController shared] uploadLogs];
@@ -279,7 +288,7 @@ __strong static CrashOpsController *_shared;
         NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Reports"];
         
         [[[CrashOpsController shared] coGlobalOperationQueue] addOperationWithBlock:^{
-            NSString *clientId = CrashOps.shared.clientId;
+            NSString *clientId = [CrashOpsController shared].clientId;
             if (!(clientId && [clientId length] > 0 && [clientId length] < 100)) {
                 clientId = nil;
             }
@@ -290,7 +299,7 @@ __strong static CrashOpsController *_shared;
                 NSMutableDictionary *allReports = [NSMutableDictionary new];
 
                 for (NSURL *logFileUrlPath in filesList) {
-                    NSLog(@"%@", logFileUrlPath);
+                    DebugLogArgs(@"%@", logFileUrlPath);
 
                     NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
                     [allReports setObject:logFileJson forKey:logFileUrlPath];
@@ -313,19 +322,21 @@ __strong static CrashOpsController *_shared;
                                 NSError *error;
                                 [[NSFileManager defaultManager] removeItemAtURL: reportPath error: &error];
                                 if (error) {
-                                    // TODO: Report this to our private analytics tool
-                                    NSLog(@"Failed to delete report file, error: %@", error);
+                                    [[CrashOpsController shared] reportInternalError: [NSString stringWithFormat:@"Failed to delete report file, error: %@", error]];
                                 }
                             }
                         }
 
-                        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
-                            [CrashOps shared].previousCrashReports(reportDictionaries);
-                        }];
+                        static dispatch_once_t onceToken;
+                        dispatch_once(&onceToken, ^{
+                            [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+                                [CrashOps shared].previousCrashReports(reportDictionaries);
+                            }];
+                        });
                     } else if ([reportPaths count] > 0) {
                         // Considered waiting to the first VC to appear (https://spin.atomicobject.com/2014/12/30/method-swizzling-objective-c/) but it's also won't solve all cases by the various developers out there.
 
-                        NSLog(@"Waiting to the host app's handler to be set...");
+                        DebugLog(@"Waiting to the host app's handler to be set...");
 //                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 //                            [[CrashOpsController shared] uploadLogs]; // Bad solution, we won't use this solution for example...
 //                        });
@@ -354,7 +365,7 @@ __strong static CrashOpsController *_shared;
 
                         NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
                             NSString *returnString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
-                            NSLog(@"%@", returnString);
+                            DebugLogArgs(@"%@", returnString);
 
                             BOOL wasRequestSuccessful = false;
                             if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
@@ -404,7 +415,7 @@ __strong static CrashOpsController *_shared;
             NSMutableDictionary *allReports = [NSMutableDictionary new];
 
             for (NSURL *logFileUrlPath in filesList) {
-                NSLog(@"%@", logFileUrlPath);
+                DebugLogArgs(@"%@", logFileUrlPath);
 
                 NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
                 [allReports setObject:logFileJson forKey:logFileUrlPath];
@@ -427,8 +438,7 @@ __strong static CrashOpsController *_shared;
                             NSError *error;
                             [[NSFileManager defaultManager] removeItemAtURL: reportPath error: &error];
                             if (error) {
-                                // TODO: Report this to our private analytics tool
-                                NSLog(@"Failed to delete report file, error: %@", error);
+                                [[CrashOpsController shared] reportInternalError: [NSString stringWithFormat:@"Failed to delete report file, error: %@", error]];
                             }
                         }
                     }
@@ -440,7 +450,7 @@ __strong static CrashOpsController *_shared;
                 } else if ([reportPaths count] > 0) {
                     // Considered waiting to the first VC to appear (https://spin.atomicobject.com/2014/12/30/method-swizzling-objective-c/) but it's also won't solve all cases by the various developers out there.
 
-                    NSLog(@"Waiting to the host app's handler to be set...");
+                    DebugLog(@"Waiting to the host app's handler to be set...");
 //                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 //                            [[CrashOpsController shared] uploadLogs]; // Bad solution, we won't use this solution for example...
 //                        });
@@ -469,7 +479,7 @@ __strong static CrashOpsController *_shared;
 
                     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
                         NSString *returnString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
-                        NSLog(@"%@", returnString);
+                        DebugLogArgs(@"%@", returnString);
 
                         BOOL wasRequestSuccessful = false;
                         if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
@@ -550,25 +560,23 @@ __strong static CrashOpsController *_shared;
 
         [jsonReport setObject: CrashOps.shared.metadata forKey: @"metadata"];
 
-        NSTimeInterval now = [[NSDate date] timeIntervalSince1970] * 1000;
-        long timestamp = (long) now;
-        NSString *nowString = [NSString stringWithFormat: @"crash-log-%ld.json", timestamp];
+//        NSTimeInterval now = [[NSDate date] timeIntervalSince1970] * 1000;
+//        long timestamp = (long) now;
+//        NSString *nowString = [NSString stringWithFormat: @"crash-log-%ld.json", timestamp];
 
-        NSError *error;
+//        NSError *error;
 
         //NSString *jsonString = [CrashOpsController toJsonString: jsonReport];
-        //NSLog(@"%@", jsonString);
+        //DebugLogArgs(@"%@", jsonString);
 
-        NSData *jsonData = [CrashOpsController toJsonData: jsonReport];
+//        NSData *jsonData = [CrashOpsController toJsonData: jsonReport];
 
-        BOOL didWrite = [jsonData writeToFile: [[self crashOpsLibraryPath] stringByAppendingPathComponent: nowString] options: NSDataWritingAtomic error: &error];
-        if (!didWrite || error) {
-            NSLog(@"Failed to save exception details with error %@", error);
-        } else {
-            NSLog(@"Exception details saved");
-        }
-
-        NSLog(@"Send log to CrashOps server on next app launch... ");
+//        BOOL didWrite = [jsonData writeToFile: [[self crashOpsLibraryPath] stringByAppendingPathComponent: nowString] options: NSDataWritingAtomic error: &error];
+//        if (!didWrite || error) {
+//            DebugLogArgs(@"Failed to save exception details with error %@", error);
+//        } else {
+            DebugLog(@"Exception details saved"); // Because if it's reached here then KSCrash already handled this crash.
+//        }
     }
     
     if ([CrashOps shared].appExceptionHandler) {
@@ -587,7 +595,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            NSLog(@"Error: Create folder failed %@", path);
+            DebugLogArgs(@"Error: Create folder failed %@", path);
         }
     }
 
@@ -607,7 +615,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            NSLog(@"Error: Create folder failed %@", path);
+            DebugLogArgs(@"Error: Create folder failed %@", path);
         }
     }
 
@@ -625,7 +633,7 @@ static void ourExceptionHandler(NSException *exception) {
     NSData *jsonData = [NSJSONSerialization dataWithJSONObject: jsonDictionary options: NSJSONWritingPrettyPrinted error: &error];
 
     NSString* jsonString = [[NSString alloc] initWithData: jsonData encoding: NSUTF8StringEncoding];
-    NSLog(@"jsonString: %@", jsonString);
+    DebugLogArgs(@"jsonString: %@", jsonString);
     
     return error ? nil : jsonString;
 }
@@ -654,7 +662,7 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 }
 
 +(void)initialize {
-    NSLog(@"App loaded");
+    DebugLog(@"App loaded");
 }
 
 + (NSDictionary *) getDeviceInfo {
@@ -663,8 +671,8 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
     uname(&un);
 
     // Discussion: These two strings are different...
-//    NSLog([CrashOpsController advertisingIdentifierString]);
-//    NSLog([[device identifierForVendor] UUIDString]);
+//    DebugLog([CrashOpsController advertisingIdentifierString]);
+//    DebugLog([[device identifierForVendor] UUIDString]);
 
     return @{
       @"name" : [device name],
