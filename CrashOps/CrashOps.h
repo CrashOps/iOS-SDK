@@ -83,6 +83,8 @@ typedef void(^PreviousReportsHandler)(NSArray *reports);
 */
 -(BOOL) logError:(NSDictionary *) errorDetails;
 
++(BOOL) isDebugModeRunning;
+
 @end
 
 NS_ASSUME_NONNULL_END

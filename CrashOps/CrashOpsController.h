@@ -29,7 +29,7 @@
 - (BOOL) logError:(NSDictionary *) errorDetails;
 
 /**
-*  Helps to log non-fatal errors.
+*  Notifies that the host app changed its handler.
 */
 - (void) onChangedHandler;
 

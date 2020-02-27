@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.0.81"
+  s.version      = "0.0.811"
   s.summary      = "CrashOps helps you monitor your app's stability."
 
   # This description is used to generate tags and improve search results.
@@ -94,7 +94,7 @@ Pod::Spec.new do |s|
 
 # ↓↓↓ THIS IS WHERE YOU DEFINE THE DEPENDENCY TO ANOTHER POD ↓↓↓
 
-s.dependency 'KZCrash', '1.15.23' # Using remote cocoa pod
+s.dependency 'KZCrash', '1.15.23'
 
 # ↑↑↑ THIS IS WHERE YOU DEFINE THE DEPENDENCY TO ANOTHER POD ↑↑↑
   # ――― Resources ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
