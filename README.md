@@ -17,7 +17,7 @@ Then run a `pod install` inside your terminal, or from CocoaPods.app.
 
 
 ### How do I switch off / on the SDK?
-By default, the SDK runs automatically as your app runs  (plug n' play) but you always can control and enable / disable its behavior with two approaches: dynamically or statically.
+By default, the SDK is enabled and it runs automatically as your app runs  (plug n' play) but you always can control and enable / disable its behavior with two approaches: dynamically or statically.
 
 **Dynamically:** Programmatically change the value (using code) of the variable `isEnabled` as demonstrated here:
 ```swift
