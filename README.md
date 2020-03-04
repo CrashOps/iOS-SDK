@@ -36,7 +36,7 @@ CrashOps.shared().isEnabled = false // The default value is 'true'
 
 ## Acknowledgments
 
-This SDK produces advanced error crash reports by using [KZCrash](https://github.com/perrzick/KZCrash) which originally forked from the awesome [KSCrash](https://github.com/kstenerud/KSCrash) library.
+CrashOps iOS library produces advanced error crash reports by using [KZCrash](https://github.com/perrzick/KZCrash) which originally forked from the awesome [KSCrash](https://github.com/kstenerud/KSCrash) library.
 
 
 
