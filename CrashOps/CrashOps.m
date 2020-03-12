@@ -107,7 +107,7 @@ __strong static CrashOps *_sharedInstance;
         return;
     }
 
-    ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).clientId = clientId;
+    ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).clientId = crashOpsClientId;
 }
 
 - (NSString *)clientId {
@@ -138,7 +138,7 @@ __strong static CrashOps *_sharedInstance;
 @end
 
 //! Project version number for CrashOps.
-//double CrashOpsVersionNumber = 0.0082;
+//double CrashOpsVersionNumber = 0.00821;
 
 //! Project version string for CrashOps.
-//const unsigned char CrashOpsVersionString[] = "0.0.82";
+//const unsigned char CrashOpsVersionString[] = "0.0.821";
