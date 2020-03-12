@@ -23,8 +23,8 @@
 static BOOL isInitialized = NO;
 static NSString * const lock = @"co_locker";
 
-#define DebugLog(msg) if (CrashOps.isDebugModeRunning) { NSLog(msg); }
-#define DebugLogArgs(msg, args) if (CrashOps.isDebugModeRunning) { NSLog(msg, args); }
+#define DebugLog(msg) if (CrashOps.isRunningOnDebugMode) { NSLog(msg); }
+#define DebugLogArgs(msg, args) if (CrashOps.isRunningOnDebugMode) { NSLog(msg, args); }
 
 @implementation CrashOps
 
@@ -66,7 +66,7 @@ static NSString * const lock = @"co_locker";
     return [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) logError: errorDetails];
 }
 
-+(BOOL)isDebugModeRunning {
++(BOOL)isRunningOnDebugMode {
 #ifdef DEBUG
     return YES;
 #else
@@ -74,7 +74,10 @@ static NSString * const lock = @"co_locker";
 #endif
 }
 
-- (void)crash {
+- (void) crash {
+    if (!self.crashOpsController.isEnabled) return;
+    if (!CrashOps.isRunningOnDebugMode) return;
+
     [self performSelector:@selector(callUnimplementedSelector)];
 }
 
@@ -104,13 +107,20 @@ __strong static CrashOps *_sharedInstance;
         return;
     }
 
-    clientId = crashOpsClientId;
     ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).clientId = clientId;
+}
+
+- (NSString *)clientId {
+    return ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).clientId;
 }
 
 - (void)setIsEnabled:(BOOL)isOn {
     isEnabled = isOn;
     ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).isEnabled = isOn;
+}
+
+- (CrashOpsController *) crashOpsController {
+    return ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)]));
 }
 
 + (CrashOps *)shared {
@@ -128,7 +138,7 @@ __strong static CrashOps *_sharedInstance;
 @end
 
 //! Project version number for CrashOps.
-//double CrashOpsVersionNumber = 0.00811;
+//double CrashOpsVersionNumber = 0.0082;
 
 //! Project version string for CrashOps.
-//const unsigned char CrashOpsVersionString[] = "0.0.811";
+//const unsigned char CrashOpsVersionString[] = "0.0.82";
