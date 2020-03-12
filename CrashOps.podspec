@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.0.811"
+  s.version      = "0.0.82"
   s.summary      = "CrashOps helps you monitor your app's stability."
 
   # This description is used to generate tags and improve search results.
