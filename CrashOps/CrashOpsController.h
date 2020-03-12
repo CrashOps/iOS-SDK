@@ -33,4 +33,8 @@
 */
 - (void) onChangedHandler;
 
++(NSString *) ipsFilesLibraryPath;
+
++(NSDictionary *) toJsonDictionary:(NSString *) jsonString;
+
 @end

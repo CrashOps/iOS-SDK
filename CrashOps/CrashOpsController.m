@@ -8,40 +8,55 @@
 
 #import "CrashOps.h"
 #import "CrashOpsController.h"
+
+#import "AppleCrashReportGenerator.h"
+
 #import "KSCrashMonitor_NSException.h"
 #include "KSCrashMonitor.h"
 #include "KSCrashMonitorContext.h"
 #import <KZCrash/KSCrash.h>
 #import <KZCrash/KSCrashInstallationStandard.h>
 #import <KZCrash/KSCrashInstallationConsole.h>
-#import <KZCrash/KSCrashInstallationEmail.h>
 #import <sys/utsname.h>
 
 #import <AdSupport/ASIdentifierManager.h>
 
-typedef void(^ReportsUploadCompletion)(NSArray *reports);
+#import <zlib.h>
+
+typedef void(^FilesUploadCompletion)(NSInteger filesCount);
+
+typedef void(^LogsUploadCompletion)(NSArray *reports);
 
 @interface CrashOpsController()
 
 @property (nonatomic, strong) NSUserDefaults *userDefaults;
 @property (nonatomic, strong) NSString *libraryPath;
 @property (nonatomic, strong) NSString *errorsPath;
+@property (nonatomic, strong) NSString *ipsFilesPath;
 @property (nonatomic, strong) NSObject *appFinishedLaunchObserver;
 @property (nonatomic, strong) NSNumber *isEnabled_Optional;
+
+@property (nonatomic, strong) NSArray *previousErrorLogFilesList;
+@property (nonatomic, strong) NSArray *previousCrashLogFilesList;
+
 @property (nonatomic) NSOperationQueue* coGlobalOperationQueue;
 @property (nonatomic, assign) KSCrashMonitorAPI* crashMonitorAPI;
 @property (nonatomic, assign) BOOL didAppFinishLaunching;
-@property (nonatomic, assign) BOOL didBeginUpload;
+@property (nonatomic, assign) BOOL isUploading;
+
++(void) logInternalError:(NSString *) internalError;
 
 @end
 
-static NSString * const kClientId = @"co_ClientId";
-static NSString * const kSdkIdentifier = @"com.crashops.sdk";
-
-#define DebugLog(msg) if (CrashOps.isDebugModeRunning) { NSLog(msg); }
-#define DebugLogArgs(msg, args) if (CrashOps.isDebugModeRunning) { NSLog(msg, args); }
+#define DebugLog(msg) if (CrashOps.isRunningOnDebugMode) { NSLog(msg); }
+#define DebugLogArgs(msg, args) if (CrashOps.isRunningOnDebugMode) { NSLog(msg, args); }
 
 @implementation CrashOpsController
+
+/** Date formatter for Apple date format in crash reports. */
+static NSDateFormatter* g_dateFormatter;
+static NSString * const kClientId = @"co_ClientId";
+static NSString * const kSdkIdentifier = @"com.crashops.sdk";
 
 @synthesize libraryPath;
 @synthesize errorsPath;
@@ -50,10 +65,15 @@ static NSString * const kSdkIdentifier = @"com.crashops.sdk";
 @synthesize isEnabled;
 @synthesize isEnabled_Optional;
 @synthesize didAppFinishLaunching;
-@synthesize didBeginUpload;
+@synthesize isUploading;
 @synthesize crashMonitorAPI;
 @synthesize clientId;
 @synthesize userDefaults;
+
++ (void) initialize {
+    g_dateFormatter = [[NSDateFormatter alloc] init];
+    [g_dateFormatter setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
+}
 
 NSUncaughtExceptionHandler *oldHandler;
 
@@ -71,7 +91,7 @@ __strong static CrashOpsController *_shared;
 - (id)init {
     if (self = [super init]) {
         coGlobalOperationQueue = [[NSOperationQueue alloc] init];
-        didBeginUpload = NO;
+        isUploading = NO;
         isEnabled = YES;
         userDefaults = [[NSUserDefaults alloc] initWithSuiteName: kSdkIdentifier];
         clientId = [[self userDefaults] stringForKey: kClientId];
@@ -113,7 +133,7 @@ __strong static CrashOpsController *_shared;
     NSString *stringToBeWritten = @"Jailbreak Test.";
     [stringToBeWritten writeToFile:@"/private/jailbreak.txt" atomically:YES
                           encoding:NSUTF8StringEncoding error:&error];
-    if(error==nil) {
+    if(error == nil) {
         //Device is jailbroken
         isJailbroken |= YES;
     } else {
@@ -136,6 +156,7 @@ __strong static CrashOpsController *_shared;
 }
 
 - (void)setClientId:(NSString *)crashOpsClientId {
+    // https://stackoverflow.com/questions/899209/how-do-i-test-if-a-string-is-empty-in-objective-c
     if (![crashOpsClientId length]) {
         return;
     }
@@ -144,10 +165,16 @@ __strong static CrashOpsController *_shared;
         return;
     }
 
-    clientId = crashOpsClientId;
-    [[self userDefaults] setObject: clientId forKey: kClientId];
+    if (![clientId length]) {
+        clientId = crashOpsClientId;
+        [[self userDefaults] setObject: clientId forKey: kClientId];
+    } else {
+        // TODO: Notify that client ID has already been set.
+    }
 
-    [self uploadLogs];
+    if ([clientId length]) {
+        [self uploadLogs];
+    }
 }
 
 - (void) setIsEnabled:(BOOL)isOn {
@@ -188,32 +215,8 @@ __strong static CrashOpsController *_shared;
     }
 }
 
-- (BOOL) logError:(NSDictionary *) errorDetails {
-    if (!errorDetails) return NO;
-    if (![errorDetails count]) return NO;
-
-    NSTimeInterval timeMilliseconds = [[NSDate date] timeIntervalSince1970] * 1000;
-    NSInteger timestamp = ((NSInteger) timeMilliseconds);
-
-    NSString *filePath = [[self errorsLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"error_%ld.log", (long) timestamp]];
-
-    NSDictionary *jsonDictionary = @{@"errorDetails":errorDetails,@"report":@{@"id":[NSNumber numberWithInteger:timestamp], @"timestamp":[NSNumber numberWithInteger:timestamp]}};
-    NSData *errorData = [CrashOpsController toJsonData: jsonDictionary];
-
-    NSError *error;
-
-    BOOL didSave = [errorData writeToFile: filePath options: NSDataWritingAtomic error: &error];
-    if (!didSave || error) {
-        DebugLogArgs(@"Failed to save log with error %@", error);
-    } else {
-        DebugLog(@"Log saved.");
-    }
-
-    if (didSave) {
-        [self uploadErrors];
-    }
-
-    return didSave;
++ (void) logInternalError:(NSString *) internalError {
+    [[CrashOpsController shared] reportInternalError: internalError];
 }
 
 // TODO: Report this to our private analytics tool
@@ -256,11 +259,11 @@ __strong static CrashOpsController *_shared;
 
     BOOL isEnabled = config_isEnabled;
     
-    if (CrashOps.isDebugModeRunning && config_isDisabledOnDebug) {
+    if (CrashOps.isRunningOnDebugMode && config_isDisabledOnDebug) {
         isEnabled = NO;
     }
 
-    if (!CrashOps.isDebugModeRunning && config_isDisabledOnRelease) {
+    if (!CrashOps.isRunningOnDebugMode && config_isDisabledOnRelease) {
         isEnabled = NO;
     }
 
@@ -278,13 +281,39 @@ __strong static CrashOpsController *_shared;
     });
 }
 
+- (NSArray *) errorLogFilesList {
+    NSString *clientId = CrashOps.shared.clientId;
+    if (!(clientId && [clientId length] > 0 && [clientId length] < 100)) {
+        clientId = nil;
+    }
+
+    if ([[NSFileManager defaultManager] fileExistsAtPath: [self errorsLibraryPath]]) {
+        NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: [self errorsLibraryPath]] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+        return filesList;
+    }
+
+    return @[];
+}
+
+- (NSArray *) crashLogFilesList {
+    NSString *basePath = [KSCrash sharedInstance].basePath;
+    NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Reports"];
+
+    if ([[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
+        NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: reportsPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+        return filesList;
+    }
+
+    return @[];
+}
+
 // ======================================================================
 #pragma mark - Advanced Crash Handling (optional) -
 // ======================================================================
 
-- (void) uploadCrashes {
-    if ([[KSCrash sharedInstance] respondsToSelector: @selector(basePath)]) {
-        NSString *basePath = [[KSCrash sharedInstance] performSelector: @selector(basePath)];
+- (void) uploadCrashes:(FilesUploadCompletion) onDone {
+    NSString *basePath = [KSCrash sharedInstance].basePath;
+    if (basePath) {
         NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Reports"];
         
         [[[CrashOpsController shared] coGlobalOperationQueue] addOperationWithBlock:^{
@@ -295,6 +324,14 @@ __strong static CrashOpsController *_shared;
 
             if ([[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
                 NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: reportsPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+
+                if (filesList.count == 0) {
+                    if (onDone) {
+                        onDone(0);
+                    }
+
+                    return;
+                }
 
                 NSMutableDictionary *allReports = [NSMutableDictionary new];
 
@@ -307,7 +344,7 @@ __strong static CrashOpsController *_shared;
 
                 NSMutableArray *uploadTasks = [NSMutableArray new];
                 // An old fashion, simplified, "synchronizer" :)
-                ReportsUploadCompletion completion = ^void(NSArray* reportPaths) {
+                LogsUploadCompletion completion = ^void(NSArray* reportPaths) {
                     if ([reportPaths count] > 0 && [CrashOps shared].previousCrashReports) {
                         if (![CrashOps shared].isEnabled) return;
 
@@ -341,39 +378,62 @@ __strong static CrashOpsController *_shared;
 //                            [[CrashOpsController shared] uploadLogs]; // Bad solution, we won't use this solution for example...
 //                        });
                     }
+                    
+                    if (onDone) {
+                        onDone(reportPaths.count);
+                    }
                 };
 
                 NSMutableArray *sentReports = [NSMutableArray new];
-                NSString *serverUrlString = @"https://us-central1-crash-logs.cloudfunctions.net/storeCrashReport";
 
                 for (NSURL *reportPath in allReports) {
                     NSString *reportJson = allReports[reportPath];
                     if (clientId) {
-                        NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
-                        [request setURL:[NSURL URLWithString: serverUrlString]];
-                        [request setHTTPMethod: @"POST"];
+                        NSString *ipsFilePath = [AppleCrashReportGenerator generateIpsFile: reportPath];
+                        NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: reportJson];
+                        NSDate *logTime = [AppleCrashReportGenerator crashDate: jsonDictionary];
+                        NSString *reportId = [AppleCrashReportGenerator reportId: jsonDictionary];
+                        NSString *timestamp = [CrashOpsController stringFromDate: logTime withFormat: nil];
 
-                        NSMutableData *body = [NSMutableData data];
+                        NSData *fileData = [NSData dataWithContentsOfFile: ipsFilePath];
+                        NSData *zipped = [CrashOpsController gzippedWithCompressionLevel: fileData];
 
-                        NSString *contentType = [NSString stringWithFormat:@"application/json; charset=utf-8"];
-                        [request addValue:contentType forHTTPHeaderField:@"Content-Type"];
+                        if (!zipped) {
+                            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to zip log into gzip data, file path: %@", ipsFilePath]];
+                            continue;
+                        }
+
+//                        NSString *fileName = [[[ipsFilePath lastPathComponent] componentsSeparatedByString:@"."] firstObject];
+//                        if (!fileName || ![fileName length]) {
+//                            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to extract file name, file path: %@", reportPath.description]];
+//                            continue;
+//                        }
+
+                        NSString *zipFileName = [NSString stringWithFormat:@"ios_crash_%@_%@.gzip", timestamp, reportId];
+
+                        NSMutableURLRequest *request = [CrashOpsController prepareRequestMultipartFormData: zipped andFileName: zipFileName];
+
+                        if (!request) {
+                            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for file upload, file path: %@", ipsFilePath]];
+                            continue;
+                        }
+
                         [request addValue: clientId forHTTPHeaderField:@"crashops-client-id"];
-
-                        [body appendData:[[NSString stringWithString: reportJson] dataUsingEncoding: NSUTF8StringEncoding]];
-
-                        [request setHTTPBody: body];
 
                         NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
                             NSString *returnString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
                             DebugLogArgs(@"%@", returnString);
 
                             BOOL wasRequestSuccessful = false;
-                            if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
-                                wasRequestSuccessful = ((NSHTTPURLResponse *)response).statusCode > 200 && ((NSHTTPURLResponse *)response).statusCode < 300;
+                            if (response && [response isKindOfClass: [NSHTTPURLResponse class]]) {
+                                NSInteger responseStatusCode = ((NSHTTPURLResponse *)response).statusCode;
+                                wasRequestSuccessful = responseStatusCode >= 200 && responseStatusCode < 300;
                             }
 
                             if (wasRequestSuccessful) {
                                 [sentReports addObject: reportPath];
+                            } else {
+                                [CrashOpsController logInternalError:@"Failed to upload!"];
                             }
 
                             [uploadTasks removeLastObject];
@@ -390,7 +450,8 @@ __strong static CrashOpsController *_shared;
                 }
                 
                 if (!clientId) {
-                    completion(sentReports);
+//                    completion(sentReports);
+                    completion(@[]);
                 }
 
                 for (NSURLSessionDataTask *uploadTask in uploadTasks) {
@@ -401,10 +462,9 @@ __strong static CrashOpsController *_shared;
     }
 }
 
-// TODO: This `uploadErrors` functionality is still kinda new, we will might need to improve this code.
-- (void) uploadErrors {
+- (void) uploadErrors:(FilesUploadCompletion) onDone {
     [[[CrashOpsController shared] coGlobalOperationQueue] addOperationWithBlock:^{
-        NSString *clientId = CrashOps.shared.clientId;
+        NSString *clientId = [CrashOpsController shared].clientId;
         if (!(clientId && [clientId length] > 0 && [clientId length] < 100)) {
             clientId = nil;
         }
@@ -412,6 +472,14 @@ __strong static CrashOpsController *_shared;
         if ([[NSFileManager defaultManager] fileExistsAtPath: [self errorsLibraryPath]]) {
             NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: [self errorsLibraryPath]] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
 
+            if (filesList.count == 0) {
+                if (onDone) {
+                    onDone(0);
+                }
+
+                return;
+            }
+            
             NSMutableDictionary *allReports = [NSMutableDictionary new];
 
             for (NSURL *logFileUrlPath in filesList) {
@@ -423,10 +491,8 @@ __strong static CrashOpsController *_shared;
 
             NSMutableArray *uploadTasks = [NSMutableArray new];
             // An old fashion, simplified, "synchronizer" :)
-            ReportsUploadCompletion completion = ^void(NSArray* reportPaths) {
-                if ([reportPaths count] > 0 && [CrashOps shared].previousCrashReports) {
-                    if (![CrashOps shared].isEnabled) return;
-
+            LogsUploadCompletion completion = ^void(NSArray* reportPaths) {
+                if ([reportPaths count] > 0) {
                     NSMutableArray* reportDictionaries = [NSMutableArray new];
                     for (NSURL *reportPath in allReports) {
                         NSString *reportJson = allReports[reportPath];
@@ -448,46 +514,57 @@ __strong static CrashOpsController *_shared;
 //                                [CrashOps shared].previousCrashReports(reportDictionaries);
 //                            }];
                 } else if ([reportPaths count] > 0) {
-                    // Considered waiting to the first VC to appear (https://spin.atomicobject.com/2014/12/30/method-swizzling-objective-c/) but it's also won't solve all cases by the various developers out there.
+                    // Considering to wait for the first VC to appear (https://spin.atomicobject.com/2014/12/30/method-swizzling-objective-c/).
 
                     DebugLog(@"Waiting to the host app's handler to be set...");
 //                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 //                            [[CrashOpsController shared] uploadLogs]; // Bad solution, we won't use this solution for example...
 //                        });
                 }
+                
+                if (onDone) {
+                    onDone(reportPaths.count);
+                }
             };
 
             NSMutableArray *sentReports = [NSMutableArray new];
-            NSString *serverUrlString = @"https://us-central1-crash-logs.cloudfunctions.net/storeErrorReport";
 
             for (NSURL *reportPath in allReports) {
                 NSString *reportJson = allReports[reportPath];
                 if (clientId) {
-                    NSMutableURLRequest *request = [[NSMutableURLRequest alloc] init];
-                    [request setURL:[NSURL URLWithString: serverUrlString]];
-                    [request setHTTPMethod: @"POST"];
+                    NSData *fileData = [NSData dataWithContentsOfURL: reportPath];
+                    NSData *zipped = [CrashOpsController gzippedWithCompressionLevel: fileData];
+                    NSString *fileName = [[[reportPath lastPathComponent] componentsSeparatedByString:@"."] firstObject];
+                    if (!fileName || ![fileName length]) {
+                        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to extract file name, file path: %@", reportPath.description]];
+                        continue;
+                    }
 
-                    NSMutableData *body = [NSMutableData data];
+                    NSString *zipFileName = [NSString stringWithFormat:@"%@.gzip", fileName];
 
-                    NSString *contentType = [NSString stringWithFormat:@"application/json; charset=utf-8"];
-                    [request addValue:contentType forHTTPHeaderField:@"Content-Type"];
+                    NSMutableURLRequest *request = [CrashOpsController prepareRequestMultipartFormData:zipped andFileName: zipFileName];
+
+                    if (!request) {
+                        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for file upload, file path: %@", reportPath]];
+                        continue;
+                    }
+
                     [request addValue: clientId forHTTPHeaderField:@"crashops-client-id"];
 
-                    [body appendData:[[NSString stringWithString: reportJson] dataUsingEncoding: NSUTF8StringEncoding]];
-
-                    [request setHTTPBody: body];
-
                     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
-                        NSString *returnString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
-                        DebugLogArgs(@"%@", returnString);
+                        NSString *responseString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
+                        DebugLogArgs(@"%@", responseString);
 
                         BOOL wasRequestSuccessful = false;
-                        if (response && [response isKindOfClass:[NSHTTPURLResponse class]]) {
-                            wasRequestSuccessful = ((NSHTTPURLResponse *)response).statusCode > 200 && ((NSHTTPURLResponse *)response).statusCode < 300;
+                        if (response && [response isKindOfClass: [NSHTTPURLResponse class]]) {
+                            NSInteger responseStatusCode = ((NSHTTPURLResponse *)response).statusCode;
+                            wasRequestSuccessful = responseStatusCode >= 200 && responseStatusCode < 300;
                         }
 
                         if (wasRequestSuccessful) {
                             [sentReports addObject: reportPath];
+                        } else {
+                            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload log, responseString: %@, file path: %@", responseString, reportPath.description]];
                         }
 
                         [uploadTasks removeLastObject];
@@ -504,7 +581,8 @@ __strong static CrashOpsController *_shared;
             }
             
             if (!clientId) {
-                completion(sentReports);
+                //completion(sentReports);
+                completion(@[]);
             }
 
             for (NSURLSessionDataTask *uploadTask in uploadTasks) {
@@ -514,13 +592,140 @@ __strong static CrashOpsController *_shared;
     }];
 }
 
+/** Uploads pending log files.
+ *  Each upload bulk operation will occur one at a time.
+ */
 - (void) uploadLogs {
     if (![CrashOps shared].isEnabled) return;
-//    if (didBeginUpload) return;
-    didBeginUpload = true;
+    if (!clientId) return;
 
-    [self uploadCrashes];
-    [self uploadErrors];
+    if (isUploading) return;
+    isUploading = true;
+
+    FilesUploadCompletion completion = ^void(NSInteger filesCount) {
+        NSArray *currentCrashLogFilesList = [[CrashOpsController shared] crashLogFilesList];
+        NSArray *currentErrorLogFilesList = [[CrashOpsController shared] errorLogFilesList];
+
+        if ([[CrashOpsController shared] errorLogFilesList].count > 0 || [[CrashOpsController shared] crashLogFilesList].count > 0) {
+            BOOL isSameCrashLogsList = NO;
+            BOOL isSameErrorLogsList = NO;
+            if ([CrashOpsController shared].previousCrashLogFilesList) {
+                isSameCrashLogsList = currentCrashLogFilesList.count == [CrashOpsController shared].previousCrashLogFilesList.count;
+                if (isSameCrashLogsList) {
+                    for (int logIndex = 0; logIndex < [CrashOpsController shared].previousCrashLogFilesList.count; ++logIndex) {
+                        NSURL *previousLogFileUrlPath = [CrashOpsController shared].previousCrashLogFilesList[logIndex];
+                        NSURL *currentLogFileUrlPath = currentCrashLogFilesList[logIndex];
+                        // Meaning - it's the exact same list!
+                        isSameCrashLogsList &= [[previousLogFileUrlPath lastPathComponent] isEqualToString: [currentLogFileUrlPath lastPathComponent]];
+                    }
+                }
+            }
+
+            if ([CrashOpsController shared].previousErrorLogFilesList) {
+                isSameErrorLogsList = currentErrorLogFilesList.count == [CrashOpsController shared].previousErrorLogFilesList.count;
+                if (isSameErrorLogsList) {
+                    for (int logIndex = 0; logIndex < [CrashOpsController shared].previousErrorLogFilesList.count; ++logIndex) {
+                        NSURL *previousLogFileUrlPath = [CrashOpsController shared].previousErrorLogFilesList[logIndex];
+                        NSURL *currentLogFileUrlPath = currentErrorLogFilesList[logIndex];
+                        // We're OK if the indicator will point out that the crashes are the same!
+                        isSameErrorLogsList &= [[previousLogFileUrlPath lastPathComponent] isEqualToString: [currentLogFileUrlPath lastPathComponent]];
+                    }
+                }
+            }
+
+            [CrashOpsController shared].isUploading = false;
+
+            [CrashOpsController shared].previousCrashLogFilesList = currentCrashLogFilesList;
+            [CrashOpsController shared].previousErrorLogFilesList = currentErrorLogFilesList;
+
+            if (isSameCrashLogsList && isSameErrorLogsList) {
+                // Preventing endless loops
+                [CrashOpsController logInternalError:@"Failing to upload the same files... aborting!"];
+            } else {
+                // Retry and see if there are leftovers...
+                [[CrashOpsController shared] uploadLogs];
+            }
+        }
+    };
+
+    NSMutableArray *uploadResults = [NSMutableArray new];
+
+    [self uploadCrashes:^(NSInteger filesCount) {
+        [uploadResults addObject: [NSNumber numberWithLong: filesCount]];
+        if (uploadResults.count == 2) {
+            NSInteger total = ((NSNumber*)[uploadResults objectAtIndex:0]).integerValue + ((NSNumber*)[uploadResults objectAtIndex:1]).integerValue;
+            completion(total);
+        }
+    }];
+
+    [self uploadErrors:^(NSInteger filesCount) {
+        [uploadResults addObject:[NSNumber numberWithLong:filesCount]];
+        if (uploadResults.count == 2) {
+            NSInteger total = ((NSNumber*)[uploadResults objectAtIndex:0]).integerValue + ((NSNumber*)[uploadResults objectAtIndex:1]).integerValue;
+            completion(total);
+        }
+    }];
+}
+
++ (NSMutableURLRequest *) prepareRequestMultipartFormDataOfUrl:(NSURL *)filePath {
+    NSData *fileData = [NSData dataWithContentsOfURL: filePath];
+
+    if (!fileData) {
+        return nil;
+    }
+
+    return [CrashOpsController prepareRequestMultipartFormData: fileData andFileName:[filePath lastPathComponent]];
+}
+
++ (NSMutableURLRequest *) prepareRequestMultipartFormDataOfFile:(NSString *)filePath {
+    NSData *fileData = [NSData dataWithContentsOfFile: filePath];
+
+    if (!fileData) {
+        return nil;
+    }
+
+    return [CrashOpsController prepareRequestMultipartFormData: fileData andFileName:[filePath lastPathComponent]];
+}
+
++ (NSMutableURLRequest *) prepareRequestMultipartFormData:(NSData *)fileData andFileName:(NSString *) fileName {
+    
+    NSString *serverUrlString = @"https://us-central1-crash-logs.cloudfunctions.net/uploadLog";
+
+    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL: [NSURL URLWithString: serverUrlString]];
+
+    [request setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
+    [request setHTTPShouldHandleCookies:NO];
+    [request setTimeoutInterval:60];
+    [request setHTTPMethod:@"POST"];
+    
+    NSString *boundary = @"unique-consistent-string";
+    
+    NSString *contentType = [NSString stringWithFormat:@"multipart/form-data; boundary=%@", boundary];
+    [request setValue: contentType forHTTPHeaderField: @"Content-Type"];
+    
+    NSMutableData *postBody = [NSMutableData data];
+    
+    if (fileData) {
+        // https://gist.github.com/mombrea/8467128
+        [postBody appendData:[[NSString stringWithFormat:@"--%@\r\n", boundary] dataUsingEncoding:NSUTF8StringEncoding]];
+        [postBody appendData:[[NSString stringWithFormat:@"Content-Disposition: form-data; name=%@; filename=%@\r\n", @"logFile", fileName] dataUsingEncoding: NSUTF8StringEncoding]];
+        [postBody appendData:[@"Content-Type: text/plain\r\n\r\n" dataUsingEncoding: NSUTF8StringEncoding]];
+        [postBody appendData: fileData];
+        [postBody appendData:[[NSString stringWithFormat:@"\r\n"] dataUsingEncoding:NSUTF8StringEncoding]];
+    }
+    
+    [postBody appendData:[[NSString stringWithFormat:@"--%@--\r\n", boundary] dataUsingEncoding:NSUTF8StringEncoding]];
+    
+    [request setHTTPBody: postBody];
+
+    if (![postBody length]) {
+        return nil;
+    }
+
+    NSString *postLength = [NSString stringWithFormat:@"%lu", (unsigned long)[postBody length]];
+    [request setValue:postLength forHTTPHeaderField:@"Content-Length"];
+    
+    return request;
 }
 
 - (void) configureAdvancedSettings {
@@ -547,41 +752,97 @@ __strong static CrashOpsController *_shared;
     }
 
     if ([CrashOps shared].isEnabled) {
-        NSMutableDictionary *jsonReport = [NSMutableDictionary new];
-
-        NSThread *current = [NSThread currentThread];
-        [jsonReport setObject: [current description] forKey: @"crashedThread"];
-
-        [jsonReport setObject: exception.callStackSymbols forKey: @"stackTrace"];
-        [jsonReport setObject: exception.reason forKey: @"reason"];
-        if (exception.userInfo) {
-            [jsonReport setObject: exception.userInfo forKey: @"moreInfo"];
-        }
-
-        [jsonReport setObject: CrashOps.shared.metadata forKey: @"metadata"];
-
-//        NSTimeInterval now = [[NSDate date] timeIntervalSince1970] * 1000;
-//        long timestamp = (long) now;
-//        NSString *nowString = [NSString stringWithFormat: @"crash-log-%ld.json", timestamp];
-
-//        NSError *error;
-
-        //NSString *jsonString = [CrashOpsController toJsonString: jsonReport];
-        //DebugLogArgs(@"%@", jsonString);
-
-//        NSData *jsonData = [CrashOpsController toJsonData: jsonReport];
-
-//        BOOL didWrite = [jsonData writeToFile: [[self crashOpsLibraryPath] stringByAppendingPathComponent: nowString] options: NSDataWritingAtomic error: &error];
-//        if (!didWrite || error) {
-//            DebugLogArgs(@"Failed to save exception details with error %@", error);
-//        } else {
-            DebugLog(@"Exception details saved"); // Because if it's reached here then KSCrash already handled this crash.
-//        }
+        // Crash occurred, already handled by KZCrash.
     }
     
     if ([CrashOps shared].appExceptionHandler) {
         [CrashOps shared].appExceptionHandler(exception);
     }
+}
+
+- (BOOL) logError:(NSDictionary *) errorDetails {
+    if (!errorDetails) return NO;
+    if (![errorDetails count]) return NO;
+
+    NSDate *now = [NSDate date];
+    NSTimeInterval timeMilliseconds = [now timeIntervalSince1970] * 1000;
+    NSInteger timestamp = ((NSInteger) timeMilliseconds);
+
+    NSString *nowString = [CrashOpsController stringFromDate: now withFormat: @"yyyy-MM-dd-HH-mm-ss-SSS_ZZZ"];
+
+    NSString *filePath = [[self errorsLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"ios_error_%@_%@.log", nowString, [[NSUUID UUID] UUIDString]]];
+
+    NSDictionary *jsonDictionary = @{@"errorDetails": errorDetails,
+                                     @"report":@{@"id": [NSNumber numberWithInteger: timestamp],
+                                                 @"time": nowString},
+                                     //@"details": [self generateReport: [NSException exceptionWithName:@"Error" reason:@"" userInfo:@{@"isFatal": NO}]],
+                                     @"details": [self generateReport: nil],
+                                     @"isFatal": @NO
+    };
+    NSData *errorData = [CrashOpsController toJsonData: jsonDictionary];
+
+    NSError *error;
+    BOOL didSave = [errorData writeToFile: filePath options: NSDataWritingAtomic error: &error];
+    if (!didSave || error) {
+        DebugLogArgs(@"Failed to save log with error %@", error);
+    } else {
+        DebugLog(@"Log saved.");
+    }
+
+    if (didSave) {
+        [self uploadLogs];
+    }
+
+    return didSave;
+}
+
+-(NSMutableDictionary *) generateReport:(NSException *) exception {
+    NSMutableDictionary *jsonReport = [NSMutableDictionary new];
+
+    NSThread *current = [NSThread currentThread];
+    [jsonReport setObject: [current description] forKey: @"currentThread"];
+
+    NSMutableArray *stackTrace;
+
+    if (exception) {
+        stackTrace = exception.callStackSymbols.mutableCopy;
+        [jsonReport setObject: exception.reason forKey: @"reason"];
+        if (exception.userInfo) {
+            [jsonReport setObject: exception.userInfo forKey: @"moreInfo"];
+        }
+    } else {
+        stackTrace = [[NSThread callStackSymbols] mutableCopy];
+        [stackTrace removeObjectAtIndex: 0];
+    }
+
+    [jsonReport setObject: stackTrace forKey: @"stackTrace"];
+
+    [jsonReport setObject: CrashOps.shared.metadata forKey: @"metadata"];
+    
+//    [jsonReport setObject: [NSBundle allFrameworks] forKey: @"allFrameworks"];
+
+    return jsonReport;
+}
+
++(NSString *) ipsFilesLibraryPath {
+    CrashOpsController *instance = [CrashOpsController shared];
+    if (instance.ipsFilesPath != nil) {
+        return instance.ipsFilesPath;
+    }
+
+    NSString *path = [[CrashOpsController shared].crashOpsLibraryPath stringByAppendingPathComponent: @"ipsFiles"];
+
+    BOOL isDir = YES;
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
+        if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
+            DebugLogArgs(@"Error: Create folder failed %@", path);
+        }
+    }
+
+    instance.ipsFilesPath = path;
+
+    return instance.ipsFilesPath;
 }
 
 -(NSString *) errorsLibraryPath {
@@ -661,10 +922,6 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
     [[CrashOpsController shared] onAppLoaded];
 }
 
-+(void)initialize {
-    DebugLog(@"App loaded");
-}
-
 + (NSDictionary *) getDeviceInfo {
     UIDevice* device = [UIDevice currentDevice];
     struct utsname un;
@@ -694,6 +951,68 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 
 + (NSString *) advertisingIdentifierString {
     return [[[ASIdentifierManager sharedManager] advertisingIdentifier] UUIDString];
+}
+
++ (NSData*) gzippedWithCompressionLevel:(NSData*) original {
+    if(!original) {
+        return [NSData data];
+    }
+
+    uInt length = (uInt)[original length];
+    if(length == 0) {
+        return [NSData data];
+    }
+
+    z_stream stream = {0};
+    stream.next_in = (Bytef*)[original bytes];
+    stream.avail_in = length;
+
+    int err;
+
+    err = deflateInit2(&stream,
+                       -1,
+                       Z_DEFLATED,
+                       (16+MAX_WBITS),
+                       9,
+                       Z_DEFAULT_STRATEGY);
+    if(err != Z_OK) {
+        return nil;
+    }
+
+    NSMutableData* compressedData = [NSMutableData dataWithLength:(NSUInteger)(length * 1.02 + 50)];
+    Bytef* compressedBytes = [compressedData mutableBytes];
+    NSUInteger compressedLength = [compressedData length];
+
+    while(err == Z_OK) {
+        stream.next_out = compressedBytes + stream.total_out;
+        stream.avail_out = (uInt)(compressedLength - stream.total_out);
+        err = deflate(&stream, Z_FINISH);
+    }
+
+    if(err != Z_STREAM_END) {
+        deflateEnd(&stream);
+        return nil;
+    }
+
+    [compressedData setLength:stream.total_out];
+
+    deflateEnd(&stream);
+
+    return compressedData;
+}
+
++ (NSString*) stringFromDate:(NSDate*) date withFormat:(NSString *) format {
+    if(![date isKindOfClass:[NSDate class]]) {
+        return nil;
+    }
+
+    if (format) {
+        [g_dateFormatter setDateFormat: format];
+    } else {
+        [g_dateFormatter setDateFormat: @"yyyy-MM-dd-HH-mm-ss-SSS_ZZZ"];
+    }
+
+    return [g_dateFormatter stringFromDate:date];
 }
 
 @end
