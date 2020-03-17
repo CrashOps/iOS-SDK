@@ -70,12 +70,7 @@ static NSString * const kSdkIdentifier = @"com.crashops.sdk";
 @synthesize clientId;
 @synthesize userDefaults;
 
-+ (void) initialize {
-    g_dateFormatter = [[NSDateFormatter alloc] init];
-    [g_dateFormatter setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
-}
-
-NSUncaughtExceptionHandler *oldHandler;
+NSUncaughtExceptionHandler *co_oldHandler;
 
 // Singleton implementation in Objective-C
 __strong static CrashOpsController *_shared;
@@ -187,7 +182,7 @@ __strong static CrashOpsController *_shared;
         if (crashMonitorAPI == nil) {
             crashMonitorAPI = kscm_nsexception_getAPI();
             if (NSGetUncaughtExceptionHandler() != exceptionHandlerPtr) {
-                oldHandler = NSGetUncaughtExceptionHandler();
+                co_oldHandler = NSGetUncaughtExceptionHandler();
                 NSSetUncaughtExceptionHandler(exceptionHandlerPtr);
             }
 
@@ -198,15 +193,13 @@ __strong static CrashOpsController *_shared;
                 [installation install];
             }
 
-            /* Perry's additions to help with tests */
             crashMonitorAPI->setEnabled(YES);
-            /* Perry's additions to help with tests */
         }
 
         [self uploadLogs];
     } else {
-        if (oldHandler != nil) {
-            NSSetUncaughtExceptionHandler(oldHandler);
+        if (co_oldHandler != nil) {
+            NSSetUncaughtExceptionHandler(co_oldHandler);
         }
 
         if (crashMonitorAPI != nil) {
@@ -224,13 +217,26 @@ __strong static CrashOpsController *_shared;
     DebugLogArgs(@"%@", sdkError);
 }
 
--(void) onAppLoaded {
+-(void) onAppIsLoading {
     // Wait for app to finish launch and then...
     appFinishedLaunchObserver = [[NSNotificationCenter defaultCenter] addObserverForName: UIApplicationDidFinishLaunchingNotification object: nil queue: nil usingBlock:^(NSNotification * _Nonnull note) {
         [CrashOpsController shared].didAppFinishLaunching = YES;
         [[CrashOpsController shared] onAppLaunched];
     }];
+}
 
+- (void) onAppLaunched {
+    [[NSNotificationCenter defaultCenter] removeObserver: [[CrashOpsController shared] appFinishedLaunchObserver]];
+
+    [self setupFromInfoPlist];
+    //DebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
+
+    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+        [[CrashOpsController shared] uploadLogs];
+    });
+}
+
+-(void) setupFromInfoPlist {
     NSString *infoPlistPath = [[NSBundle mainBundle] pathForResource:@"CrashOpsConfig-info" ofType:@"plist"];
     NSDictionary* infoPlist = [NSDictionary dictionaryWithContentsOfFile: infoPlistPath];
 
@@ -269,16 +275,6 @@ __strong static CrashOpsController *_shared;
 
     [CrashOps shared].isEnabled = isEnabled;
     [CrashOps shared].clientId = clientId;
-}
-
-- (void) onAppLaunched {
-    [[NSNotificationCenter defaultCenter] removeObserver: [[CrashOpsController shared] appFinishedLaunchObserver]];
-
-    //DebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
-
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [[CrashOpsController shared] uploadLogs];
-    });
 }
 
 - (NSArray *) errorLogFilesList {
@@ -645,6 +641,8 @@ __strong static CrashOpsController *_shared;
                 // Retry and see if there are leftovers...
                 [[CrashOpsController shared] uploadLogs];
             }
+        } else {
+            [CrashOpsController shared].isUploading = false;
         }
     };
 
@@ -747,8 +745,8 @@ __strong static CrashOpsController *_shared;
 }
 
 -(void) handleException:(NSException *) exception {
-    if (oldHandler) {
-        oldHandler(exception);
+    if (co_oldHandler) {
+        co_oldHandler(exception);
     }
 
     if ([CrashOps shared].isEnabled) {
@@ -918,8 +916,15 @@ static void ourExceptionHandler(NSException *exception) {
 
 NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 
++(void) initialize {
+    DebugLog(@"App is loading...");
+    g_dateFormatter = [[NSDateFormatter alloc] init];
+    [g_dateFormatter setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
+}
+
 + (void)load {
-    [[CrashOpsController shared] onAppLoaded];
+    [[CrashOpsController shared] onAppIsLoading];
+    DebugLog(@"CrashOps library is being loaded");
 }
 
 + (NSDictionary *) getDeviceInfo {
