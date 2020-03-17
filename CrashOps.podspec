@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.0.821"
+  s.version      = "0.0.822"
   s.summary      = "CrashOps helps you monitor your app's stability."
 
   # This description is used to generate tags and improve search results.
@@ -24,7 +24,7 @@ Pod::Spec.new do |s|
   #   * Try to keep it short, snappy and to the point.
   #   * Write the description between the DESC delimiters below.
   #   * Finally, don't worry about the indent, CocoaPods strips it!
-  s.description  = "CrashOps lets you monitor your app's errors and crashes."
+  s.description  = "CrashOps lets you monitor your app's stability and vulnerability, by giving you error and crash reports, with a supporting platform by CrashOps servers."
 
   s.homepage     = "https://github.com/CrashOps/iOS-SDK"
   # s.screenshots  = "www.example.com/screenshots_1.gif", "www.example.com/screenshots_2.gif"
