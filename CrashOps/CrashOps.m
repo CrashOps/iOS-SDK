@@ -138,7 +138,7 @@ __strong static CrashOps *_sharedInstance;
 @end
 
 //! Project version number for CrashOps.
-//double CrashOpsVersionNumber = 0.00822;
+//double CrashOpsVersionNumber = 0.00823;
 
 //! Project version string for CrashOps.
-//const unsigned char CrashOpsVersionString[] = "0.0.822";
+//const unsigned char CrashOpsVersionString[] = "0.0.823";
