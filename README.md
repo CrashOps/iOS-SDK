@@ -4,8 +4,8 @@
 This library will help you monitor your iOS app's crashes.
 
 
-## Installation - 🔌 & ▶️
-
+## Installation
+### 🔌 & ▶️
 ### Install via CocoaPods
 [![](https://img.shields.io/cocoapods/v/CrashOps.svg?style=flat)](https://cocoapods.org/pods/CrashOps)
 
