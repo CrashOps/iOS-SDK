@@ -17,20 +17,45 @@ end
 ```
 Then run a `pod install` inside your terminal, or from CocoaPods.app.
 
+## Usage
+To recognize your app in CrashOps servers you need a client ID, you can set it via code (programmatically) or via plist file.
+
+### Set client ID via code
+```Swift
+import CrashOps
+
+// Swift
+CrashOps.shared().clientId = "app's-client-ID-received-from-CrashOps-support"
+```
+
+```Objective-C
+#import <CrashOps/CrashOps.h>
+
+// Objective-C
+[CrashOps shared].clientId = @"app's-client-ID-received-from-CrashOps-support";
+```
+
+### Set client ID via config file
+
+Use a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/v0.0.68/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist) and add it to your project.
+
 
 ### How do I turn CrashOps off / on?
 By default, CrashOps is enabled and it runs automatically as your app runs  (plug n' play) but you always can control and enable / disable its behavior with two approaches: dynamically or statically.
 
 **Dynamically:** Programmatically change the value (using code) of the variable `isEnabled` as demonstrated here:
-```swift
+```Swift
+import CrashOps
+
 // Swift
 CrashOps.shared().isEnabled = false // The default value is 'true'
 ```
 
-```objective-c
+```Objective-C
+#import <CrashOps/CrashOps.h>
+
 // Objective-C
 [CrashOps shared].isEnabled = NO; // The default value is 'YES'
-
 ```
 
 **Statically:** Add a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/v0.0.68/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist) to your project and CrashOps will read it in every app launch (using this method can still be overridden by the dynamic approach).
