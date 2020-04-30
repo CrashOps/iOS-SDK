@@ -21,7 +21,7 @@ Then run a `pod install` inside your terminal, or from CocoaPods.app.
 
 ### Client ID
 
-To recognize your app in CrashOps servers you need a client ID, you can set it via code (programmatically) or via plist file.
+To recognize your app in CrashOps servers you need a client ID, you can set it via code (programmatically) either via config file.
 
 #### Set client ID via code
 ```Swift
