@@ -18,9 +18,12 @@ end
 Then run a `pod install` inside your terminal, or from CocoaPods.app.
 
 ## Usage
+
+### Client ID
+
 To recognize your app in CrashOps servers you need a client ID, you can set it via code (programmatically) or via plist file.
 
-### Set client ID via code
+#### Set client ID via code
 ```Swift
 import CrashOps
 
@@ -35,7 +38,7 @@ CrashOps.shared().clientId = "app's-client-ID-received-from-CrashOps-support"
 [CrashOps shared].clientId = @"app's-client-ID-received-from-CrashOps-support";
 ```
 
-### Set client ID via config file
+#### Set client ID via config file
 
 Use a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/v0.0.68/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist) and add it to your project.
 
