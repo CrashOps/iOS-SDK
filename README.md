@@ -19,28 +19,28 @@ Then run a `pod install` inside your terminal, or from CocoaPods.app.
 
 ## Usage
 
-### Client ID
+### Application Key
 
-To recognize your app in CrashOps servers you need a client ID, you can set it via code (programmatically) either via config file.
+To recognize your app in CrashOps servers you need an application key, you can set it via code (programmatically) either via config file.
 
-#### Set client ID via code
+#### Set an application key via code
 ```Swift
 import CrashOps
 
 // Swift
-CrashOps.shared().clientId = "app's-client-ID-received-from-CrashOps-support"
+CrashOps.shared().appKey = "app's-key-received-from-CrashOps-support"
 ```
 
 ```Objective-C
 #import <CrashOps/CrashOps.h>
 
 // Objective-C
-[CrashOps shared].clientId = @"app's-client-ID-received-from-CrashOps-support";
+[CrashOps shared].appKey = @"app's-key-received-from-CrashOps-support";
 ```
 
-#### Set client ID via config file
+#### Set an application key via config file
 
-Use a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/v0.0.68/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist) and add it to your project.
+Use the [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/v0.1.0-going-live/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist#L11) and place it in your project.
 
 
 ### How do I turn CrashOps off / on?
@@ -61,7 +61,7 @@ CrashOps.shared().isEnabled = false // The default value is 'true'
 [CrashOps shared].isEnabled = NO; // The default value is 'YES'
 ```
 
-**Statically:** Add a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/v0.0.68/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist) to your project and CrashOps will read it in every app launch (using this method can still be overridden by the dynamic approach).
+**Statically:** Add a [CrashOpsConfig-info.plist file](https://github.com/CrashOps/iOS-SDK/blob/v0.1.0-going-live/CrashOps/SupportingFiles/example-for-optional-info-plist/CrashOpsConfig-info.plist#L11) to your project and CrashOps will read it in every app launch (using this method can still be overridden by the dynamic approach).
 
 
 ## Acknowledgments
