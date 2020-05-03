@@ -15,7 +15,7 @@ target 'MyApp' do
   pod 'CrashOps', '0.1.0'
 end
 ```
-Then run a `pod install` inside your terminal, or from CocoaPods.app.
+Then run a `pod install` in your terminal, or from CocoaPods app.
 
 ## Usage
 
