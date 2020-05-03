@@ -28,16 +28,17 @@ static NSString * const lock = @"co_locker";
 
 @implementation CrashOps
 
-@synthesize clientId;
+@synthesize appKey;
 @synthesize metadata;
 @synthesize isEnabled;
+@synthesize isTracingScreens;
 
 - (instancetype)init {
     self = [super init];
 
     if (self) {
         isEnabled = YES;
-        clientId = @"";
+        appKey = @"";
         metadata = [NSMutableDictionary new];
     }
 
@@ -98,20 +99,20 @@ __strong static CrashOps *_sharedInstance;
     [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) onChangedHandler];
 }
 
-- (void)setClientId:(NSString *)crashOpsClientId {
-    if (![crashOpsClientId length]) {
+- (void)setAppKey:(NSString *)crashOpsAppKey {
+    if (![crashOpsAppKey length]) {
         return;
     }
 
-    if ([crashOpsClientId length] > 100) {
+    if ([crashOpsAppKey length] > 100) {
         return;
     }
 
-    ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).clientId = crashOpsClientId;
+    ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).appKey = crashOpsAppKey;
 }
 
-- (NSString *)clientId {
-    return ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).clientId;
+- (NSString *)appKey {
+    return ((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])).appKey;
 }
 
 - (void)setIsEnabled:(BOOL)isOn {

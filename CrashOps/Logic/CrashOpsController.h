@@ -6,6 +6,12 @@
 //  Copyright © 2020 CrashOps. All rights reserved.
 //
 
+#ifndef _CRASHOPS_STUFF
+#define _timestamp_milliseconds() [[NSDate new] timeIntervalSince1970] * 1000
+#define _CRASHOPS_STUFF
+#else
+#endif
+
 #import <Foundation/Foundation.h>
 
 /**
@@ -14,9 +20,9 @@
 @interface CrashOpsController: NSObject
 
 /**
- *  The client ID received by CrashOps customer services.
+ *  Your application key, received by CrashOps services.
 */
-@property (nonatomic, strong) NSString *clientId;
+@property (nonatomic, strong) NSString *appKey;
 
 /**
  *  Determines whether the SDK is enabled or not, it's set to true by default.
