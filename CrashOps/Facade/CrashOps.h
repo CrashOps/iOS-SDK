@@ -33,15 +33,21 @@ typedef void(^PreviousReportsHandler)(NSArray *reports);
 @property (nonatomic, assign) NSUncaughtExceptionHandler *appExceptionHandler;
 
 /**
- *  The client ID received by CrashOps customer services.
+ *  Your application key, received by CrashOps services.
 */
-@property (nonatomic, strong) NSString *clientId;
+@property (nonatomic, strong) NSString *appKey;
 
 /**
- *  Determines whether the SDK is enabled or not, it's set to true by default.
+ *  Determines whether the SDK is enabled or not, it's set to `true` by default.
  *  This value may also be optionally changed via the 'CrashOpsConfig-info.plist' file.
 */
 @property (nonatomic, assign) BOOL isEnabled;
+
+/**
+ *  Determines whether the SDK will report about screen traces (breadcrumbs) or not, it's set to `true` by default.
+ *  This value may also be optionally changed via the 'CrashOpsConfig-info.plist' file.
+*/
+@property (nonatomic, assign) BOOL isTracingScreens;
 
 /**
  *  Enables adding metadata to each report, this data will be available under the "User" key.

@@ -531,26 +531,26 @@ static NSDictionary* g_registerOrders;
     return [AppleCrashReportGenerator headerStringForSystemInfo:system reportID:reportID crashTime:crashTime];
 }
 
-+ (NSString*)headerStringForSystemInfo:(NSDictionary*)system reportID:(NSString*)reportID crashTime:(NSDate*)crashTime
++ (NSString*)headerStringForSystemInfo:(NSDictionary*)system reportID:(NSString*)reportID crashTime:(NSDate*) crashTime
 {
     NSMutableString* str = [NSMutableString string];
     NSString* executablePath = [system objectForKey:@KZCrashField_ExecutablePath];
     NSString* cpuArch = [system objectForKey:@KZCrashField_CPUArch];
     NSString* cpuArchType = [AppleCrashReportGenerator CPUType:cpuArch];
 
-    [str appendFormat:@"Incident Identifier: %@\n", reportID];
-    [str appendFormat:@"CrashReporter Key:   %@\n", [system objectForKey:@KZCrashField_DeviceAppHash]];
-    [str appendFormat:@"Hardware Model:      %@\n", [system objectForKey:@KZCrashField_Machine]];
-    [str appendFormat:@"Process:         %@ [%@]\n",
+    [str appendFormat: @"Incident Identifier: %@\n", reportID];
+    [str appendFormat: @"CrashReporter Key:   %@\n", [system objectForKey: @KZCrashField_DeviceAppHash]];
+    [str appendFormat: @"Hardware Model:      %@\n", [system objectForKey: @KZCrashField_Machine]];
+    [str appendFormat: @"Process:         %@ [%@]\n",
      [system objectForKey:@KZCrashField_ProcessName],
      [system objectForKey:@KZCrashField_ProcessID]];
-    [str appendFormat:@"Path:            %@\n", executablePath];
-    [str appendFormat:@"Identifier:      %@\n", [system objectForKey:@KZCrashField_BundleID]];
-    [str appendFormat:@"Version:         %@ (%@)\n",
-     [system objectForKey:@KZCrashField_BundleVersion],
-     [system objectForKey:@KZCrashField_BundleShortVersion]];
-    [str appendFormat:@"Code Type:       %@\n", cpuArchType];
-    [str appendFormat:@"Parent Process:  ? [%@]\n",
+    [str appendFormat: @"Path:            %@\n", executablePath];
+    [str appendFormat: @"Identifier:      %@\n", [system objectForKey:@KZCrashField_BundleID]];
+    [str appendFormat: @"Version:         %@ (%@)\n",
+     [system objectForKey: @KZCrashField_BundleVersion],
+     [system objectForKey: @KZCrashField_BundleShortVersion]];
+    [str appendFormat: @"Code Type:       %@\n", cpuArchType];
+    [str appendFormat: @"Parent Process:  ? [%@]\n",
      [system objectForKey:@KZCrashField_ParentProcessID]];
     [str appendFormat:@"\n"];
     [str appendFormat:@"Date/Time:       %@\n", [AppleCrashReportGenerator stringFromDate:crashTime]];
@@ -572,11 +572,9 @@ static NSDictionary* g_registerOrders;
     NSString* executablePath = [system objectForKey:@KZCrashField_ExecutablePath];
 
     [str appendString:@"\nBinary Images:\n"];
-    if(binaryImages)
-    {
+    if(binaryImages) {
         NSMutableArray* images = [NSMutableArray arrayWithArray:binaryImages];
-        [images sortUsingComparator:^NSComparisonResult(id obj1, id obj2)
-         {
+        [images sortUsingComparator:^NSComparisonResult(id obj1, id obj2) {
              NSNumber* num1 = [(NSDictionary*)obj1 objectForKey:@KZCrashField_ImageAddress];
              NSNumber* num2 = [(NSDictionary*)obj2 objectForKey:@KZCrashField_ImageAddress];
              if(num1 == nil || num2 == nil)
@@ -585,8 +583,7 @@ static NSDictionary* g_registerOrders;
              }
              return [num1 compare:num2];
          }];
-        for(NSDictionary* image in images)
-        {
+        for(NSDictionary* image in images) {
             cpu_type_t cpuType = [[image objectForKey:@KZCrashField_CPUType] intValue];
             cpu_subtype_t cpuSubtype = [[image objectForKey:@KZCrashField_CPUSubType] intValue];
             uintptr_t imageAddr = (uintptr_t)[[image objectForKey:@KZCrashField_ImageAddress] longLongValue];

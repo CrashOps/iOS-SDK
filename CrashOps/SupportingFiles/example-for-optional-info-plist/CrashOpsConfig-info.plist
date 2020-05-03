@@ -2,13 +2,13 @@
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0">
 <dict>
-	<key>isEnabled</key>
+	<key>IS_ENABLED</key>
 	<true/>
-	<key>isDisabledOnRelease</key>
+	<key>IS_DISABLED_ON_RELEASE</key>
 	<false/>
-	<key>isDisabledOnDebug</key>
+	<key>IS_DISABLED_ON_DEBUG</key>
 	<false/>
-	<key>clientId</key>
+	<key>APPLICATION_KEY</key>
 	<string></string>
 </dict>
 </plist>
