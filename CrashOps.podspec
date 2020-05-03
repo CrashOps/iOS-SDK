@@ -94,7 +94,7 @@ Pod::Spec.new do |s|
 
 # ↓↓↓ THIS IS WHERE YOU DEFINE THE DEPENDENCY TO ANOTHER POD ↓↓↓
 
-s.dependency 'KZCrash', '1.15.24'
+s.dependency 'KZCrash', '1.15.25'
 
 # ↑↑↑ THIS IS WHERE YOU DEFINE THE DEPENDENCY TO ANOTHER POD ↑↑↑
   # ――― Resources ―――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
