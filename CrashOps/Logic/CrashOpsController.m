@@ -1072,8 +1072,10 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 
 // The swizzled methods
 -(void) co_onViewAppeared:(BOOL) animated {
+    if (![CrashOps shared].isTracingScreens) return;
     // Hmmm... this line won't work although "NSHipster" said we should call it.
     //[self co_onViewAppeared:animated];
+
     if ([self isKindOfClass: [UIViewController class]]) {
         // ignoring warning: "Incompatible pointer types initializing 'UIViewController *' with an expression of type 'CrashOpsController *'"
         UIViewController *appearedViewController = self;
@@ -1083,12 +1085,11 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 //            // [co_ToastMessage show: @"toast done presenting..." delayInSeconds: 10 onDone: nil];
 //        }];
 
-        NSMutableArray *traces = [NSMutableArray new];
-        for (ScreenDetails *details in [[CrashOpsController shared] screenTracer].breadcrumbsReport) {
-            [traces addObject: [details toDictionary]];
-        }
-
-        NSString *jsonString = [CrashOpsController toJsonString:@{@"traces": traces}];
+//        NSMutableArray *traces = [NSMutableArray new];
+//        for (ScreenDetails *details in [[CrashOpsController shared] screenTracer].breadcrumbsReport) {
+//            [traces addObject: [details toDictionary]];
+//        }
+//        NSString *jsonString = [CrashOpsController toJsonString:@{@"traces": traces}];
 
 //        [co_ToastMessage show: [NSString stringWithFormat:@"traces so far: %@", jsonString] delayInSeconds:5 onDone: nil];
     }
