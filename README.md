@@ -19,7 +19,7 @@ Then run a `pod install` in your terminal, or from CocoaPods app.
 
 ## Usage
 
-### Application Key
+### Set Application Key
 
 To recognize your app in CrashOps servers you need an application key, you can set it via code (programmatically) either via config file.
 
