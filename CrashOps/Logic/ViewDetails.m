@@ -102,7 +102,9 @@
             [children addObject:[details toDictionary]];
         }
 
-        [viewDetailsDictionary setObject: children forKey: @"children"];
+        if ([children count]) {
+            [viewDetailsDictionary setObject: children forKey: @"children"];
+        }
     }
 
     return viewDetailsDictionary;

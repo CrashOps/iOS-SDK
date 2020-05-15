@@ -23,8 +23,8 @@
 static BOOL isInitialized = NO;
 static NSString * const lock = @"co_locker";
 
-#define DebugLog(msg) if (CrashOps.isRunningOnDebugMode) { NSLog(msg); }
-#define DebugLogArgs(msg, args) if (CrashOps.isRunningOnDebugMode) { NSLog(msg, args); }
+#define DebugLog(msg) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg); }
+#define DebugLogArgs(msg, args) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg, args); }
 
 @implementation CrashOps
 
@@ -73,6 +73,10 @@ static NSString * const lock = @"co_locker";
 #else
     return NO;
 #endif
+}
+
++ (NSString *)sdkVersion {
+    return @"0.1.12";
 }
 
 - (void) crash {

@@ -48,6 +48,7 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 @property (nonatomic, assign) KSCrashMonitorAPI* crashMonitorAPI;
 @property (nonatomic, assign) BOOL didAppFinishLaunching;
 @property (nonatomic, assign) BOOL isUploading;
+@property (nonatomic, assign) BOOL isDebugModeEnabled;
 
 @property (nonatomic, strong) ScreenTracer *screenTracer;
 
@@ -55,8 +56,8 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 
 @end
 
-#define DebugLog(msg) if (CrashOps.isRunningOnDebugMode) { NSLog(msg); }
-#define DebugLogArgs(msg, args) if (CrashOps.isRunningOnDebugMode) { NSLog(msg, args); }
+#define DebugLog(msg) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg); }
+#define DebugLogArgs(msg, args) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg, args); }
 
 @implementation CrashOpsController
 
@@ -78,7 +79,8 @@ static NSString * const kSdkName = @"CrashOps";
 @synthesize crashMonitorAPI;
 @synthesize appKey;
 @synthesize coUserDefaults;
-@synthesize screenTracer;
+//@synthesize screenTracer;
+@synthesize isDebugModeEnabled;
 
 NSUncaughtExceptionHandler *co_oldHandler;
 
@@ -98,9 +100,10 @@ __strong static CrashOpsController *_shared;
         coGlobalOperationQueue = [[NSOperationQueue alloc] init];
         coGlobalOperationQueue.name = kSdkIdentifier;
         isUploading = NO;
+        isDebugModeEnabled = NO;
         isEnabled = YES;
         coUserDefaults = [[NSUserDefaults alloc] initWithSuiteName: kSdkIdentifier];
-        screenTracer = [ScreenTracer new];
+        _screenTracer = [ScreenTracer new];
     }
 
     return self;
@@ -155,6 +158,10 @@ __strong static CrashOpsController *_shared;
 #else
     return NO;
 #endif
+}
+
++ (BOOL)isDebugModeEnabled {
+    return _shared.isDebugModeEnabled;
 }
 
 - (void)onChangedHandler {
@@ -279,6 +286,12 @@ __strong static CrashOpsController *_shared;
     }
     BOOL config_isTracingScreens = isTracingScreens.boolValue;
 
+    NSString* isDebugModeEnabled = infoPlist[@"IS_DEBUG_MODE_ENABLED"];
+    if (isDebugModeEnabled == nil) {
+        isDebugModeEnabled = @"0";
+    }
+    self.isDebugModeEnabled = isDebugModeEnabled.boolValue;
+
     NSString* isDisabledOnDebug = infoPlist[@"IS_DISABLED_ON_DEBUG"];
     if (isDisabledOnDebug == nil) {
         isDisabledOnDebug = @"0";
@@ -302,7 +315,7 @@ __strong static CrashOpsController *_shared;
     }
 
     [CrashOps shared].isEnabled = isEnabled;
-    [CrashOps shared].isTracingScreens = isTracingScreens;
+    [CrashOps shared].isTracingScreens = config_isTracingScreens;
     [CrashOps shared].appKey = appKey;
 }
 
@@ -370,9 +383,15 @@ __strong static CrashOpsController *_shared;
 
             NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
             NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: logFileJson];
-            // Intentionally using NSMutableDictionary becuase this dictionary is going to be changed right before the upload (will add more CrashOps fields).
-            NSMutableDictionary *_jsonDictionary = [CrashOpsController addCrashOpsConstantFields: jsonDictionary];
-            [allReports setObject: _jsonDictionary forKey: logFileUrlPath];
+            if ([jsonDictionary count]) {
+                // Intentionally using NSMutableDictionary becuase this dictionary is going to be changed right before the upload (will add more CrashOps fields).
+                NSMutableDictionary *_jsonDictionary = [CrashOpsController addCrashOpsConstantFields: jsonDictionary];
+                if (_jsonDictionary) {
+                    [allReports setObject: _jsonDictionary forKey: logFileUrlPath];
+                } else {
+                    [CrashOpsController logInternalError: @"Failed to add CrashOps constant fields!"];
+                }
+            }
         }
 
         NSMutableArray *uploadTasks = [NSMutableArray new];
@@ -428,6 +447,12 @@ __strong static CrashOpsController *_shared;
             }
         };
 
+        if (![allReports count]) {
+            completion(0);
+
+            return;
+        }
+
         NSMutableArray *sentReports = [NSMutableArray new];
 
         for (NSURL *reportPath in allReports) {
@@ -445,9 +470,11 @@ __strong static CrashOpsController *_shared;
                     if (logFileJson && [logFileJson length]) {
                         NSDictionary *additionalInfoDictionary = [CrashOpsController toJsonDictionary: logFileJson];
 
-                        // Merging dictionaries
-                        for (NSString *key in [additionalInfoDictionary allKeys]) {
-                            [jsonDictionary setObject:[additionalInfoDictionary objectForKey: key] forKey: key];
+                        if ([additionalInfoDictionary count]) {
+                            // Merging dictionaries
+                            for (NSString *key in [additionalInfoDictionary allKeys]) {
+                                [jsonDictionary setObject: [additionalInfoDictionary objectForKey: key] forKey: key];
+                            }
                         }
                     }
                 }
@@ -538,7 +565,9 @@ __strong static CrashOpsController *_shared;
 
             NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
             NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: logFileJson];
-            [allReports setObject: jsonDictionary forKey: logFileUrlPath];
+            if ([jsonDictionary count]) {
+                [allReports setObject: jsonDictionary forKey: logFileUrlPath];
+            }
         }
 
         NSMutableArray *uploadTasks = [NSMutableArray new];
@@ -582,6 +611,12 @@ __strong static CrashOpsController *_shared;
                 onDone(reportPaths.count);
             }
         };
+
+        if (![allReports count]) {
+            completion(@[]);
+
+            return;
+        }
 
         NSMutableArray *sentReports = [NSMutableArray new];
 
@@ -724,6 +759,7 @@ __strong static CrashOpsController *_shared;
 + (NSMutableDictionary *) addCrashOpsConstantFields:(NSDictionary *) reportJson {
     NSMutableDictionary *reportCopy = [reportJson mutableCopy];
     reportCopy[@"devicePlatform"] = @"ios";
+    reportCopy[@"crashOpsSdkVersion"] = [CrashOps sdkVersion]; //[NSString stringWithCString:CrashOpsVersionString encoding: NSUTF8StringEncoding];
     reportCopy[@"buildMode"] = [CrashOps isRunningOnDebugMode] ? @"DEBUG" : @"RELEASE";
 
     return reportCopy;
@@ -872,55 +908,6 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     return didSave;
 }
 
--(NSMutableDictionary *) generateReport:(NSException *) exception {
-    NSMutableDictionary *jsonReport = [NSMutableDictionary new];
-
-    NSThread *current = [NSThread currentThread];
-    [jsonReport setObject: [current description] forKey: @"currentThread"];
-
-    NSMutableArray *stackTrace;
-
-    if (exception) {
-        stackTrace = exception.callStackSymbols.mutableCopy;
-        [jsonReport setObject: exception.reason forKey: @"reason"];
-        if (exception.userInfo) {
-            [jsonReport setObject: exception.userInfo forKey: @"moreInfo"];
-        }
-    } else {
-        stackTrace = [[NSThread callStackSymbols] mutableCopy];
-        [stackTrace removeObjectAtIndex: 0];
-    }
-
-    [jsonReport setObject: stackTrace forKey: @"stackTrace"];
-
-    [jsonReport setObject: CrashOps.shared.metadata forKey: @"metadata"];
-    
-//    [jsonReport setObject: [NSBundle allFrameworks] forKey: @"allFrameworks"];
-
-    return jsonReport;
-}
-
-+(NSString *) ipsFilesLibraryPath {
-    CrashOpsController *instance = [CrashOpsController shared];
-    if (instance.ipsFilesPath != nil) {
-        return instance.ipsFilesPath;
-    }
-
-    NSString *path = [[CrashOpsController shared].crashOpsLibraryPath stringByAppendingPathComponent: @"ipsFiles"];
-
-    BOOL isDir = YES;
-    NSFileManager *fileManager = [NSFileManager defaultManager];
-    if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
-        if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Create folder failed %@", path);
-        }
-    }
-
-    instance.ipsFilesPath = path;
-
-    return instance.ipsFilesPath;
-}
-
 -(NSString *) errorsLibraryPath {
     if (errorsPath != nil) {
         return errorsPath;
@@ -981,6 +968,59 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     return libraryPath;
 }
 
+-(NSMutableDictionary *) generateReport:(NSException *) exception {
+    NSMutableDictionary *jsonReport = [NSMutableDictionary new];
+
+    NSThread *current = [NSThread currentThread];
+    [jsonReport setObject: [current description] forKey: @"currentThread"];
+
+    NSMutableArray *stackTrace;
+
+    if (exception) {
+        stackTrace = exception.callStackSymbols.mutableCopy;
+        [jsonReport setObject: exception.reason forKey: @"reason"];
+        if (exception.userInfo) {
+            [jsonReport setObject: exception.userInfo forKey: @"moreInfo"];
+        }
+    } else {
+        stackTrace = [[NSThread callStackSymbols] mutableCopy];
+        [stackTrace removeObjectAtIndex: 0];
+    }
+
+    [jsonReport setObject: stackTrace forKey: @"stackTrace"];
+
+    [jsonReport setObject: CrashOps.shared.metadata forKey: @"metadata"];
+    
+//    [jsonReport setObject: [NSBundle allFrameworks] forKey: @"allFrameworks"];
+
+    return jsonReport;
+}
+
+- (ScreenTracer *)screenTracer {
+    return _screenTracer;
+}
+
++(NSString *) ipsFilesLibraryPath {
+    CrashOpsController *instance = [CrashOpsController shared];
+    if (instance.ipsFilesPath != nil) {
+        return instance.ipsFilesPath;
+    }
+
+    NSString *path = [[CrashOpsController shared].crashOpsLibraryPath stringByAppendingPathComponent: @"ipsFiles"];
+
+    BOOL isDir = YES;
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
+        if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
+            DebugLogArgs(@"Error: Create folder failed %@", path);
+        }
+    }
+
+    instance.ipsFilesPath = path;
+
+    return instance.ipsFilesPath;
+}
+
 static void ourExceptionHandler(NSException *exception) {
     [[CrashOpsController shared] handleException: exception];
 }
@@ -1008,8 +1048,19 @@ static void ourExceptionHandler(NSException *exception) {
 }
 
 +(NSDictionary *) toJsonDictionary:(NSString *) jsonString {
+    if (![jsonString length]) {
+        [CrashOpsController logLibraryError: @"Missing JSON string"];
+        return @{};
+    }
+
     NSError *jsonError;
     NSData *objectData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
+
+    if (!objectData) {
+        [CrashOpsController logLibraryError: @"Failed to create JSON data"];
+        return @{};
+    }
+
     NSDictionary *jsonDictionary = [NSJSONSerialization JSONObjectWithData: objectData
                                           options: NSJSONReadingMutableContainers
                                             error: &jsonError];
@@ -1104,8 +1155,11 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 //    DebugLog([CrashOpsController advertisingIdentifierString]);
 //    DebugLog([[device identifierForVendor] UUIDString]);
 
+    CGRect screenSize = [[UIScreen mainScreen] bounds];
+    
     return @{
       @"name" : [device name],
+      @"screenSize": [NSString stringWithFormat:@"%ldx%ld", (long)((NSInteger)screenSize.size.width), (long)((NSInteger)screenSize.size.height)],
       @"systemName" : [device systemName],
       @"systemVersion" : [device systemVersion],
       @"model" : [device model],

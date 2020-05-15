@@ -39,6 +39,8 @@
 */
 - (void) onChangedHandler;
 
++(BOOL) isDebugModeEnabled;
+
 +(NSString *) ipsFilesLibraryPath;
 
 +(NSDictionary *) toJsonDictionary:(NSString *) jsonString;
