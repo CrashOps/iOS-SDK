@@ -7,16 +7,25 @@
 	objects = {
 
 /* Begin PBXBuildFile section */
-		7527A46E24199E6600EF1CAD /* AppleCrashReportGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = 7527A46C24199E6600EF1CAD /* AppleCrashReportGenerator.m */; };
-		7527A46F24199E6600EF1CAD /* AppleCrashReportGenerator.h in Headers */ = {isa = PBXBuildFile; fileRef = 7527A46D24199E6600EF1CAD /* AppleCrashReportGenerator.h */; };
 		7538670D23BCA5610024EB9F /* CrashOps.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = 7538670323BCA5610024EB9F /* CrashOps.framework */; };
 		7538671223BCA5610024EB9F /* CrashOpsTests.m in Sources */ = {isa = PBXBuildFile; fileRef = 7538671123BCA5610024EB9F /* CrashOpsTests.m */; };
-		7538671423BCA5610024EB9F /* CrashOps.h in Headers */ = {isa = PBXBuildFile; fileRef = 7538670623BCA5610024EB9F /* CrashOps.h */; settings = {ATTRIBUTES = (Public, ); }; };
-		7538672C23BCA9330024EB9F /* CrashOps-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = 7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */; };
-		75B306CD23FD696E00E7454D /* CrashOpsConfig-info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 75B306CC23FD696E00E7454D /* CrashOpsConfig-info.plist */; };
-		75F04DE523C3826100F65DBF /* CrashOpsController.m in Sources */ = {isa = PBXBuildFile; fileRef = 75F04DE223C3826100F65DBF /* CrashOpsController.m */; };
-		75F04DE623C3826100F65DBF /* CrashOps.m in Sources */ = {isa = PBXBuildFile; fileRef = 75F04DE323C3826100F65DBF /* CrashOps.m */; };
-		75F04DE723C3826100F65DBF /* CrashOpsController.h in Headers */ = {isa = PBXBuildFile; fileRef = 75F04DE423C3826100F65DBF /* CrashOpsController.h */; };
+		75705ED1246E42A000127ABB /* ViewDetails.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705EBB246E42A000127ABB /* ViewDetails.h */; };
+		75705ED2246E42A000127ABB /* ScreenDetails.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705EBC246E42A000127ABB /* ScreenDetails.h */; };
+		75705ED3246E42A000127ABB /* ScreenTracer.m in Sources */ = {isa = PBXBuildFile; fileRef = 75705EBD246E42A000127ABB /* ScreenTracer.m */; };
+		75705ED4246E42A000127ABB /* CrashOpsController.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705EBE246E42A000127ABB /* CrashOpsController.h */; };
+		75705ED5246E42A000127ABB /* ViewDetails.m in Sources */ = {isa = PBXBuildFile; fileRef = 75705EBF246E42A000127ABB /* ViewDetails.m */; };
+		75705ED6246E42A000127ABB /* ScreenTracer.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705EC0246E42A000127ABB /* ScreenTracer.h */; };
+		75705ED7246E42A000127ABB /* ScreenDetails.m in Sources */ = {isa = PBXBuildFile; fileRef = 75705EC1246E42A000127ABB /* ScreenDetails.m */; };
+		75705ED8246E42A000127ABB /* CrashOpsController.m in Sources */ = {isa = PBXBuildFile; fileRef = 75705EC2246E42A000127ABB /* CrashOpsController.m */; };
+		75705ED9246E42A000127ABB /* AppleCrashReportGenerator.m in Sources */ = {isa = PBXBuildFile; fileRef = 75705EC4246E42A000127ABB /* AppleCrashReportGenerator.m */; };
+		75705EDA246E42A000127ABB /* AppleCrashReportGenerator.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705EC5246E42A000127ABB /* AppleCrashReportGenerator.h */; };
+		75705EDB246E42A000127ABB /* CrashOps.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705EC7246E42A000127ABB /* CrashOps.h */; };
+		75705EDC246E42A000127ABB /* CrashOps.m in Sources */ = {isa = PBXBuildFile; fileRef = 75705EC8246E42A000127ABB /* CrashOps.m */; };
+		75705EDD246E42A000127ABB /* DebugToastMessage.m in Sources */ = {isa = PBXBuildFile; fileRef = 75705ECA246E42A000127ABB /* DebugToastMessage.m */; };
+		75705EDE246E42A000127ABB /* DebugToastMessage.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705ECB246E42A000127ABB /* DebugToastMessage.h */; };
+		75705EDF246E42A000127ABB /* CrashOps-Bridging-Header.h in Headers */ = {isa = PBXBuildFile; fileRef = 75705ECD246E42A000127ABB /* CrashOps-Bridging-Header.h */; };
+		75705EE0246E42A000127ABB /* CrashOpsConfig-info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 75705ECF246E42A000127ABB /* CrashOpsConfig-info.plist */; };
+		75705EE1246E42A000127ABB /* Info.plist in Resources */ = {isa = PBXBuildFile; fileRef = 75705ED0246E42A000127ABB /* Info.plist */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXContainerItemProxy section */
@@ -30,19 +39,27 @@
 /* End PBXContainerItemProxy section */
 
 /* Begin PBXFileReference section */
-		7527A46C24199E6600EF1CAD /* AppleCrashReportGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppleCrashReportGenerator.m; sourceTree = "<group>"; };
-		7527A46D24199E6600EF1CAD /* AppleCrashReportGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppleCrashReportGenerator.h; sourceTree = "<group>"; };
 		7538670323BCA5610024EB9F /* CrashOps.framework */ = {isa = PBXFileReference; explicitFileType = wrapper.framework; includeInIndex = 0; path = CrashOps.framework; sourceTree = BUILT_PRODUCTS_DIR; };
-		7538670623BCA5610024EB9F /* CrashOps.h */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.h; path = CrashOps.h; sourceTree = "<group>"; };
 		7538670C23BCA5610024EB9F /* CrashOpsTests.xctest */ = {isa = PBXFileReference; explicitFileType = wrapper.cfbundle; includeInIndex = 0; path = CrashOpsTests.xctest; sourceTree = BUILT_PRODUCTS_DIR; };
 		7538671123BCA5610024EB9F /* CrashOpsTests.m */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.c.objc; path = CrashOpsTests.m; sourceTree = "<group>"; };
 		7538671323BCA5610024EB9F /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "CrashOps-Bridging-Header.h"; sourceTree = "<group>"; };
-		7538672B23BCA9330024EB9F /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
-		75B306CC23FD696E00E7454D /* CrashOpsConfig-info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "CrashOpsConfig-info.plist"; sourceTree = "<group>"; };
-		75F04DE223C3826100F65DBF /* CrashOpsController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOpsController.m; sourceTree = "<group>"; };
-		75F04DE323C3826100F65DBF /* CrashOps.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOps.m; sourceTree = "<group>"; };
-		75F04DE423C3826100F65DBF /* CrashOpsController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CrashOpsController.h; sourceTree = "<group>"; };
+		75705EBB246E42A000127ABB /* ViewDetails.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ViewDetails.h; sourceTree = "<group>"; };
+		75705EBC246E42A000127ABB /* ScreenDetails.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ScreenDetails.h; sourceTree = "<group>"; };
+		75705EBD246E42A000127ABB /* ScreenTracer.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ScreenTracer.m; sourceTree = "<group>"; };
+		75705EBE246E42A000127ABB /* CrashOpsController.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CrashOpsController.h; sourceTree = "<group>"; };
+		75705EBF246E42A000127ABB /* ViewDetails.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ViewDetails.m; sourceTree = "<group>"; };
+		75705EC0246E42A000127ABB /* ScreenTracer.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = ScreenTracer.h; sourceTree = "<group>"; };
+		75705EC1246E42A000127ABB /* ScreenDetails.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = ScreenDetails.m; sourceTree = "<group>"; };
+		75705EC2246E42A000127ABB /* CrashOpsController.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOpsController.m; sourceTree = "<group>"; };
+		75705EC4246E42A000127ABB /* AppleCrashReportGenerator.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = AppleCrashReportGenerator.m; sourceTree = "<group>"; };
+		75705EC5246E42A000127ABB /* AppleCrashReportGenerator.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = AppleCrashReportGenerator.h; sourceTree = "<group>"; };
+		75705EC7246E42A000127ABB /* CrashOps.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = CrashOps.h; sourceTree = "<group>"; };
+		75705EC8246E42A000127ABB /* CrashOps.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = CrashOps.m; sourceTree = "<group>"; };
+		75705ECA246E42A000127ABB /* DebugToastMessage.m */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.objc; path = DebugToastMessage.m; sourceTree = "<group>"; };
+		75705ECB246E42A000127ABB /* DebugToastMessage.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = DebugToastMessage.h; sourceTree = "<group>"; };
+		75705ECD246E42A000127ABB /* CrashOps-Bridging-Header.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; path = "CrashOps-Bridging-Header.h"; sourceTree = "<group>"; };
+		75705ECF246E42A000127ABB /* CrashOpsConfig-info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = "CrashOpsConfig-info.plist"; sourceTree = "<group>"; };
+		75705ED0246E42A000127ABB /* Info.plist */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -64,15 +81,6 @@
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
-		7527A46B24199E6600EF1CAD /* AppleFormatter */ = {
-			isa = PBXGroup;
-			children = (
-				7527A46C24199E6600EF1CAD /* AppleCrashReportGenerator.m */,
-				7527A46D24199E6600EF1CAD /* AppleCrashReportGenerator.h */,
-			);
-			path = AppleFormatter;
-			sourceTree = "<group>";
-		};
 		753866F923BCA5610024EB9F = {
 			isa = PBXGroup;
 			children = (
@@ -94,12 +102,11 @@
 		7538670523BCA5610024EB9F /* CrashOps */ = {
 			isa = PBXGroup;
 			children = (
-				7527A46B24199E6600EF1CAD /* AppleFormatter */,
-				7538672923BCA9330024EB9F /* SupportingFiles */,
-				7538670623BCA5610024EB9F /* CrashOps.h */,
-				75F04DE323C3826100F65DBF /* CrashOps.m */,
-				75F04DE423C3826100F65DBF /* CrashOpsController.h */,
-				75F04DE223C3826100F65DBF /* CrashOpsController.m */,
+				75705EC3246E42A000127ABB /* AppleFormatter */,
+				75705EC6246E42A000127ABB /* Facade */,
+				75705EBA246E42A000127ABB /* Logic */,
+				75705ECC246E42A000127ABB /* SupportingFiles */,
+				75705EC9246E42A000127ABB /* UI */,
 			);
 			path = CrashOps;
 			sourceTree = "<group>";
@@ -113,20 +120,62 @@
 			path = CrashOpsTests;
 			sourceTree = "<group>";
 		};
-		7538672923BCA9330024EB9F /* SupportingFiles */ = {
+		75705EBA246E42A000127ABB /* Logic */ = {
 			isa = PBXGroup;
 			children = (
-				75B306CB23FD696E00E7454D /* example-for-optional-info-plist */,
-				7538672A23BCA9330024EB9F /* CrashOps-Bridging-Header.h */,
-				7538672B23BCA9330024EB9F /* Info.plist */,
+				75705EBE246E42A000127ABB /* CrashOpsController.h */,
+				75705EC2246E42A000127ABB /* CrashOpsController.m */,
+				75705EBC246E42A000127ABB /* ScreenDetails.h */,
+				75705EBD246E42A000127ABB /* ScreenTracer.m */,
+				75705EBB246E42A000127ABB /* ViewDetails.h */,
+				75705EBF246E42A000127ABB /* ViewDetails.m */,
+				75705EC0246E42A000127ABB /* ScreenTracer.h */,
+				75705EC1246E42A000127ABB /* ScreenDetails.m */,
+			);
+			path = Logic;
+			sourceTree = "<group>";
+		};
+		75705EC3246E42A000127ABB /* AppleFormatter */ = {
+			isa = PBXGroup;
+			children = (
+				75705EC4246E42A000127ABB /* AppleCrashReportGenerator.m */,
+				75705EC5246E42A000127ABB /* AppleCrashReportGenerator.h */,
+			);
+			path = AppleFormatter;
+			sourceTree = "<group>";
+		};
+		75705EC6246E42A000127ABB /* Facade */ = {
+			isa = PBXGroup;
+			children = (
+				75705EC7246E42A000127ABB /* CrashOps.h */,
+				75705EC8246E42A000127ABB /* CrashOps.m */,
+			);
+			path = Facade;
+			sourceTree = "<group>";
+		};
+		75705EC9246E42A000127ABB /* UI */ = {
+			isa = PBXGroup;
+			children = (
+				75705ECA246E42A000127ABB /* DebugToastMessage.m */,
+				75705ECB246E42A000127ABB /* DebugToastMessage.h */,
+			);
+			path = UI;
+			sourceTree = "<group>";
+		};
+		75705ECC246E42A000127ABB /* SupportingFiles */ = {
+			isa = PBXGroup;
+			children = (
+				75705ECD246E42A000127ABB /* CrashOps-Bridging-Header.h */,
+				75705ECE246E42A000127ABB /* example-for-optional-info-plist */,
+				75705ED0246E42A000127ABB /* Info.plist */,
 			);
 			path = SupportingFiles;
 			sourceTree = "<group>";
 		};
-		75B306CB23FD696E00E7454D /* example-for-optional-info-plist */ = {
+		75705ECE246E42A000127ABB /* example-for-optional-info-plist */ = {
 			isa = PBXGroup;
 			children = (
-				75B306CC23FD696E00E7454D /* CrashOpsConfig-info.plist */,
+				75705ECF246E42A000127ABB /* CrashOpsConfig-info.plist */,
 			);
 			path = "example-for-optional-info-plist";
 			sourceTree = "<group>";
@@ -138,10 +187,14 @@
 			isa = PBXHeadersBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7538672C23BCA9330024EB9F /* CrashOps-Bridging-Header.h in Headers */,
-				7538671423BCA5610024EB9F /* CrashOps.h in Headers */,
-				75F04DE723C3826100F65DBF /* CrashOpsController.h in Headers */,
-				7527A46F24199E6600EF1CAD /* AppleCrashReportGenerator.h in Headers */,
+				75705ED4246E42A000127ABB /* CrashOpsController.h in Headers */,
+				75705ED6246E42A000127ABB /* ScreenTracer.h in Headers */,
+				75705EDE246E42A000127ABB /* DebugToastMessage.h in Headers */,
+				75705ED1246E42A000127ABB /* ViewDetails.h in Headers */,
+				75705EDF246E42A000127ABB /* CrashOps-Bridging-Header.h in Headers */,
+				75705EDB246E42A000127ABB /* CrashOps.h in Headers */,
+				75705EDA246E42A000127ABB /* AppleCrashReportGenerator.h in Headers */,
+				75705ED2246E42A000127ABB /* ScreenDetails.h in Headers */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -226,7 +279,8 @@
 			isa = PBXResourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				75B306CD23FD696E00E7454D /* CrashOpsConfig-info.plist in Resources */,
+				75705EE1246E42A000127ABB /* Info.plist in Resources */,
+				75705EE0246E42A000127ABB /* CrashOpsConfig-info.plist in Resources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -244,9 +298,13 @@
 			isa = PBXSourcesBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
-				7527A46E24199E6600EF1CAD /* AppleCrashReportGenerator.m in Sources */,
-				75F04DE623C3826100F65DBF /* CrashOps.m in Sources */,
-				75F04DE523C3826100F65DBF /* CrashOpsController.m in Sources */,
+				75705ED3246E42A000127ABB /* ScreenTracer.m in Sources */,
+				75705ED5246E42A000127ABB /* ViewDetails.m in Sources */,
+				75705ED8246E42A000127ABB /* CrashOpsController.m in Sources */,
+				75705EDD246E42A000127ABB /* DebugToastMessage.m in Sources */,
+				75705ED9246E42A000127ABB /* AppleCrashReportGenerator.m in Sources */,
+				75705EDC246E42A000127ABB /* CrashOps.m in Sources */,
+				75705ED7246E42A000127ABB /* ScreenDetails.m in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

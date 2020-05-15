@@ -91,6 +91,8 @@ typedef void(^PreviousReportsHandler)(NSArray *reports);
 
 +(BOOL) isRunningOnDebugMode;
 
++(NSString *) sdkVersion;
+
 @end
 
 NS_ASSUME_NONNULL_END
