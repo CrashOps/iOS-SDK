@@ -59,6 +59,11 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 #define DebugLog(msg) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg); }
 #define DebugLogArgs(msg, args) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg, args); }
 
+#define COAssert(condition, message)    \
+    if (__builtin_expect(!(condition), 0)) {        \
+        [co_ToastMessage show: [NSString stringWithFormat:@"Assertion Error!\n%@", message] delayInSeconds: 2 onDone: nil]; \
+    }
+
 @implementation CrashOpsController
 
 /** Date formatter for Apple date format in crash reports. */
@@ -230,13 +235,14 @@ __strong static CrashOpsController *_shared;
     [CrashOpsController logInternalError: [NSString stringWithFormat:@"%@ encountered NSError, details: %@", kSdkName, [errorObject description]]];
 }
 
-+ (void) logInternalError:(NSString *) internalError {
-    [[CrashOpsController shared] reportInternalError: internalError];
++ (void) logInternalError:(NSString *) sdkError {
+    DebugLogArgs(@"%@", sdkError);
+    [[CrashOpsController shared] reportInternalError: sdkError];
 }
 
-// TODO: Report this to some dedicated analytics tool
+// TODO: Report to some dedicated analytics tool
 - (void)reportInternalError:(NSString *) sdkError {
-    DebugLogArgs(@"%@", sdkError);
+    // Add to report JSON: app key + device info (storage status, device model, iOS version, etc.)
 }
 
 -(void) onAppIsLoading {
@@ -254,15 +260,13 @@ __strong static CrashOpsController *_shared;
         [CrashOpsController shared].appKey = [[[CrashOpsController shared] coUserDefaults] stringForKey: kAppKey];
 
         [[CrashOpsController shared] setupFromInfoPlist];
+        
+        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+            [[CrashOpsController shared] runTests];
+        });
     }];
 
     //DebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
-
-    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
-        [[[CrashOpsController shared] coGlobalOperationQueue] addOperationWithBlock:^{
-            [[CrashOpsController shared] uploadLogs];
-        }];
-    });
 }
 
 -(void) setupFromInfoPlist {
@@ -286,11 +290,11 @@ __strong static CrashOpsController *_shared;
     }
     BOOL config_isTracingScreens = isTracingScreens.boolValue;
 
-    NSString* isDebugModeEnabled = infoPlist[@"IS_DEBUG_MODE_ENABLED"];
-    if (isDebugModeEnabled == nil) {
-        isDebugModeEnabled = @"0";
+    NSString* _isDebugModeEnabled = infoPlist[@"IS_DEBUG_MODE_ENABLED"];
+    if (_isDebugModeEnabled == nil) {
+        _isDebugModeEnabled = @"0";
     }
-    self.isDebugModeEnabled = isDebugModeEnabled.boolValue;
+    self.isDebugModeEnabled = _isDebugModeEnabled.boolValue;
 
     NSString* isDisabledOnDebug = infoPlist[@"IS_DISABLED_ON_DEBUG"];
     if (isDisabledOnDebug == nil) {
@@ -317,6 +321,31 @@ __strong static CrashOpsController *_shared;
     [CrashOps shared].isEnabled = isEnabled;
     [CrashOps shared].isTracingScreens = config_isTracingScreens;
     [CrashOps shared].appKey = appKey;
+}
+
+-(void)runTests {
+    if (!isDebugModeEnabled) return;
+
+    COAssert([CrashOpsController toJsonDictionary: @""].count == 0, @"empty strings should become empty dictionaries");
+    
+    COAssert([CrashOpsController toJsonDictionary: nil].count == 0, @"nil strings should become empty dictionaries");
+
+//    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+//        BOOL didCatch = NO;
+//        @try {
+//            [NSJSONSerialization JSONObjectWithData: nil options: NSJSONReadingMutableContainers error: nil];
+//            NSInteger stam = @[@1,@2,@3,@4][8];
+//        } @catch (NSException *exception) {
+//            didCatch = YES;
+//            DebugLog([exception.name description]);
+//        } @finally {
+//            // ignore
+//        }
+//
+//        COAssert(didCatch, @"Didn't catch obvious exception");
+//    });
+
+    COAssert([CrashOpsController toJsonData: nil].length == 0, @"Empty strings should become empty data");
 }
 
 - (NSArray *) errorLogFilesList {
@@ -382,6 +411,12 @@ __strong static CrashOpsController *_shared;
             DebugLogArgs(@"%@", logFileUrlPath);
 
             NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
+
+            if (![logFileJson length]) {
+                [CrashOpsController logInternalError: [NSString stringWithFormat:@"Looks like this file was gone / has no content! (%@)", logFileUrlPath]];
+                continue;
+            }
+
             NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: logFileJson];
             if ([jsonDictionary count]) {
                 // Intentionally using NSMutableDictionary becuase this dictionary is going to be changed right before the upload (will add more CrashOps fields).
@@ -394,10 +429,18 @@ __strong static CrashOpsController *_shared;
             }
         }
 
+        if (allReports.count == 0) {
+            if (onDone) {
+                onDone(0);
+            }
+
+            return;
+        }
+
         NSMutableArray *uploadTasks = [NSMutableArray new];
         // An old fashion, simplified, promise.all(..) / Future.all(..) / "synchronizer" :)
-        LogsUploadCompletion completion = ^void(NSArray* reportPaths) {
-            if ([reportPaths count] > 0) {
+        LogsUploadCompletion completion = ^void(NSArray* sentReportPaths) {
+            if ([sentReportPaths count] > 0) {
                 if (![CrashOps shared].isEnabled) {
                     if (onDone) {
                         onDone(0);
@@ -407,7 +450,7 @@ __strong static CrashOpsController *_shared;
                 }
 
                 NSMutableArray* reportDictionaries = [NSMutableArray new];
-                for (NSURL *reportPath in allReports) {
+                for (NSURL *reportPath in sentReportPaths) {
                     NSDictionary *jsonDictionary = allReports[reportPath];
 
                     [reportDictionaries addObject: jsonDictionary];
@@ -443,19 +486,20 @@ __strong static CrashOpsController *_shared;
             }
 
             if (onDone) {
-                onDone(reportPaths.count);
+                onDone(sentReportPaths.count);
             }
         };
 
         if (![allReports count]) {
-            completion(0);
+            completion(@[]);
 
             return;
         }
 
         NSMutableArray *sentReports = [NSMutableArray new];
 
-        for (NSURL *reportPath in allReports) {
+        NSArray *reportsPaths = [allReports allKeys];
+        for (NSURL *reportPath in reportsPaths) {
             NSMutableDictionary *jsonDictionary = allReports[reportPath];
             if (appKey) {
 //                NSDate *logTime = [AppleCrashReportGenerator crashDate: jsonDictionary];
@@ -515,7 +559,7 @@ __strong static CrashOpsController *_shared;
 
                     [uploadTasks removeLastObject];
                     if (uploadTasks.count == 0) {
-                        completion(sentReports);
+                        completion([sentReports copy]);
                     }
                 }];
 
@@ -526,7 +570,7 @@ __strong static CrashOpsController *_shared;
         }
 
         if (!appKey) {
-            completion(sentReports);
+            completion([sentReports copy]);
         }
 
         for (NSURLSessionDataTask *uploadTask in uploadTasks) {
@@ -656,7 +700,7 @@ __strong static CrashOpsController *_shared;
 
                     [uploadTasks removeLastObject];
                     if (uploadTasks.count == 0) {
-                        completion(sentReports);
+                        completion([sentReports copy]);
                     }
                 }];
 
@@ -681,63 +725,64 @@ __strong static CrashOpsController *_shared;
  *  Each upload bulk operation will occur one at a time.
  */
 - (void) uploadLogs {
-    if (![CrashOps shared].isEnabled) return;
-    if (!appKey) return;
-
-    if (isUploading) return;
-    isUploading = true;
-
-    FilesUploadCompletion completion = ^void(NSInteger filesCount) {
-        NSArray *currentCrashLogFilesList = [[CrashOpsController shared] crashLogFilesList];
-        NSArray *currentErrorLogFilesList = [[CrashOpsController shared] errorLogFilesList];
-
-        if ([[CrashOpsController shared] errorLogFilesList].count > 0 || [[CrashOpsController shared] crashLogFilesList].count > 0) {
-            BOOL isSameCrashLogsList = NO;
-            BOOL isSameErrorLogsList = NO;
-            if ([CrashOpsController shared].previousCrashLogFilesList) {
-                isSameCrashLogsList = currentCrashLogFilesList.count == [CrashOpsController shared].previousCrashLogFilesList.count;
-                if (isSameCrashLogsList) {
-                    for (int logIndex = 0; logIndex < [CrashOpsController shared].previousCrashLogFilesList.count; ++logIndex) {
-                        NSURL *previousLogFileUrlPath = [CrashOpsController shared].previousCrashLogFilesList[logIndex];
-                        NSURL *currentLogFileUrlPath = currentCrashLogFilesList[logIndex];
-                        // Meaning - it's the exact same list!
-                        isSameCrashLogsList &= [[previousLogFileUrlPath lastPathComponent] isEqualToString: [currentLogFileUrlPath lastPathComponent]];
+    [[self coGlobalOperationQueue] addOperationWithBlock:^{
+        if (![CrashOps shared].isEnabled) return;
+        if (!self.appKey) return;
+        
+        if (self.isUploading) return;
+        self.isUploading = true;
+        
+        FilesUploadCompletion completion = ^void(NSInteger filesCount) {
+            NSArray *currentCrashLogFilesList = [[CrashOpsController shared] crashLogFilesList];
+            NSArray *currentErrorLogFilesList = [[CrashOpsController shared] errorLogFilesList];
+            
+            if ([[CrashOpsController shared] errorLogFilesList].count > 0 || [[CrashOpsController shared] crashLogFilesList].count > 0) {
+                BOOL isSameCrashLogsList = NO;
+                BOOL isSameErrorLogsList = NO;
+                if ([CrashOpsController shared].previousCrashLogFilesList) {
+                    isSameCrashLogsList = currentCrashLogFilesList.count == [CrashOpsController shared].previousCrashLogFilesList.count;
+                    if (isSameCrashLogsList) {
+                        for (int logIndex = 0; logIndex < [CrashOpsController shared].previousCrashLogFilesList.count; ++logIndex) {
+                            NSURL *previousLogFileUrlPath = [CrashOpsController shared].previousCrashLogFilesList[logIndex];
+                            NSURL *currentLogFileUrlPath = currentCrashLogFilesList[logIndex];
+                            // Meaning - it's the exact same list!
+                            isSameCrashLogsList &= [[previousLogFileUrlPath lastPathComponent] isEqualToString: [currentLogFileUrlPath lastPathComponent]];
+                        }
                     }
                 }
-            }
-
-            if ([CrashOpsController shared].previousErrorLogFilesList) {
-                isSameErrorLogsList = currentErrorLogFilesList.count == [CrashOpsController shared].previousErrorLogFilesList.count;
-                if (isSameErrorLogsList) {
-                    for (int logIndex = 0; logIndex < [CrashOpsController shared].previousErrorLogFilesList.count; ++logIndex) {
-                        NSURL *previousLogFileUrlPath = [CrashOpsController shared].previousErrorLogFilesList[logIndex];
-                        NSURL *currentLogFileUrlPath = currentErrorLogFilesList[logIndex];
-                        // We're OK if the indicator will point out that the crashes are the same!
-                        isSameErrorLogsList &= [[previousLogFileUrlPath lastPathComponent] isEqualToString: [currentLogFileUrlPath lastPathComponent]];
+                
+                if ([CrashOpsController shared].previousErrorLogFilesList) {
+                    isSameErrorLogsList = currentErrorLogFilesList.count == [CrashOpsController shared].previousErrorLogFilesList.count;
+                    if (isSameErrorLogsList) {
+                        for (int logIndex = 0; logIndex < [CrashOpsController shared].previousErrorLogFilesList.count; ++logIndex) {
+                            NSURL *previousLogFileUrlPath = [CrashOpsController shared].previousErrorLogFilesList[logIndex];
+                            NSURL *currentLogFileUrlPath = currentErrorLogFilesList[logIndex];
+                            // We're OK if the indicator will point out that the crashes are the same!
+                            isSameErrorLogsList &= [[previousLogFileUrlPath lastPathComponent] isEqualToString: [currentLogFileUrlPath lastPathComponent]];
+                        }
                     }
                 }
-            }
-
-            [CrashOpsController shared].isUploading = false;
-
-            [CrashOpsController shared].previousCrashLogFilesList = currentCrashLogFilesList;
-            [CrashOpsController shared].previousErrorLogFilesList = currentErrorLogFilesList;
-
-            if (isSameCrashLogsList && isSameErrorLogsList) {
-                // Preventing endless loops
-                [CrashOpsController logInternalError:@"Failing to upload the same files... aborting!"];
+                
+                [CrashOpsController shared].isUploading = false;
+                
+                [CrashOpsController shared].previousCrashLogFilesList = currentCrashLogFilesList;
+                [CrashOpsController shared].previousErrorLogFilesList = currentErrorLogFilesList;
+                
+                if (isSameCrashLogsList && isSameErrorLogsList) {
+                    // Preventing endless loops
+                    [CrashOpsController logInternalError:@"Failing to upload the same files... aborting!"];
+                } else {
+                    // Retry and see if there are leftovers...
+                    [[CrashOpsController shared] uploadLogs];
+                }
             } else {
-                // Retry and see if there are leftovers...
-                [[CrashOpsController shared] uploadLogs];
+                [CrashOpsController shared].isUploading = false;
             }
-        } else {
-            [CrashOpsController shared].isUploading = false;
-        }
-    };
-
-    [[[CrashOpsController shared] coGlobalOperationQueue] addOperationWithBlock:^{
+        };
+        
+        
         NSMutableArray *uploadResults = [NSMutableArray new];
-
+        
         [self uploadCrashes: ^(NSInteger filesCount) {
             [uploadResults addObject: [NSNumber numberWithLong: filesCount]];
             if (uploadResults.count == 2) {
@@ -745,7 +790,7 @@ __strong static CrashOpsController *_shared;
                 completion(total);
             }
         }];
-
+        
         [self uploadErrors: ^(NSInteger filesCount) {
             [uploadResults addObject:[NSNumber numberWithLong:filesCount]];
             if (uploadResults.count == 2) {
@@ -1027,7 +1072,11 @@ static void ourExceptionHandler(NSException *exception) {
 
 +(NSString *) toJsonString:(NSDictionary *) jsonDictionary {
     NSError *error;
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject: jsonDictionary options: 0 error: &error];
+    NSData *jsonData = [CrashOpsController toJsonData: jsonDictionary];
+
+    if (![jsonData length]) {
+        return nil;
+    }
 
     NSString* jsonString = [[NSString alloc] initWithData: jsonData encoding: NSUTF8StringEncoding];
     DebugLogArgs(@"jsonString: %@", jsonString);
@@ -1036,9 +1085,22 @@ static void ourExceptionHandler(NSException *exception) {
 }
 
 +(NSData *) toJsonData:(NSDictionary *) jsonDictionary {
+    if (![jsonDictionary count]) {
+        // Avoiding 'NSInvalidArgumentException'
+        return nil;
+    }
+
+    NSData *jsonData;
     NSError *error;
-    // Instead of NSJSONWritingPrettyPrinted, we're not using any option.
-    NSData *jsonData = [NSJSONSerialization dataWithJSONObject: jsonDictionary options: 0 error: &error];
+
+    @try {
+        // Instead of NSJSONWritingPrettyPrinted, we're not using any option.
+        jsonData = [NSJSONSerialization dataWithJSONObject: jsonDictionary options: kNilOptions error: &error];
+    } @catch (NSException *exception) {
+        error = [NSError errorWithDomain:kSdkName code: 1 userInfo: @{@"exception":exception}];
+    } @finally {
+        // ignore
+    }
 
     if (error) {
         [CrashOpsController logLibraryError: error];
@@ -1049,7 +1111,7 @@ static void ourExceptionHandler(NSException *exception) {
 
 +(NSDictionary *) toJsonDictionary:(NSString *) jsonString {
     if (![jsonString length]) {
-        [CrashOpsController logLibraryError: @"Missing JSON string"];
+        [CrashOpsController logInternalError: @"Missing JSON string"];
         return @{};
     }
 
@@ -1057,13 +1119,21 @@ static void ourExceptionHandler(NSException *exception) {
     NSData *objectData = [jsonString dataUsingEncoding:NSUTF8StringEncoding];
 
     if (!objectData) {
-        [CrashOpsController logLibraryError: @"Failed to create JSON data"];
+        [CrashOpsController logInternalError: @"Failed to create JSON data"];
         return @{};
     }
 
-    NSDictionary *jsonDictionary = [NSJSONSerialization JSONObjectWithData: objectData
-                                          options: NSJSONReadingMutableContainers
-                                            error: &jsonError];
+    NSDictionary *jsonDictionary;
+    @try {
+        // Instead of NSJSONWritingPrettyPrinted, we're not using any option.
+        jsonDictionary = [NSJSONSerialization JSONObjectWithData: objectData
+        options: NSJSONReadingMutableContainers
+          error: &jsonError];
+    } @catch (NSException *exception) {
+        jsonError = [NSError errorWithDomain:kSdkName code: 1 userInfo: @{@"exception":exception}];
+    } @finally {
+        // ignore
+    }
 
     if (jsonError) {
         [CrashOpsController logLibraryError: jsonError];
