@@ -32,6 +32,14 @@
         return;
     }
 
+    if (!NSThread.isMainThread) {
+        [[NSOperationQueue mainQueue] addOperationWithBlock:^{
+            [co_ToastMessage show: messageText delayInSeconds: delay onDone: callback];
+        }];
+
+        return;
+    }
+
     UIWindow *appWindow = UIApplication.sharedApplication.keyWindow;
     if (!appWindow) {
         if (callback) {
