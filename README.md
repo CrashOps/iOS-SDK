@@ -12,7 +12,7 @@ This library will help you monitor your iOS app's crashes.
 You want to add `pod 'CrashOps'` similar to the following to your Podfile:
 ```
 target 'MyApp' do
-  pod 'CrashOps', '0.2.10'
+  pod 'CrashOps', '0.2.11'
 end
 ```
 Then run a `pod install` in your terminal, or from CocoaPods app.
