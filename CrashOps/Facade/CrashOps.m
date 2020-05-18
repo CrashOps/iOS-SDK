@@ -76,7 +76,7 @@ static NSString * const lock = @"co_locker";
 }
 
 + (NSString *)sdkVersion {
-    return @"0.2.10";
+    return @"0.2.11";
 }
 
 - (void) crash {
