@@ -249,7 +249,7 @@ __strong static CrashOpsController *_shared;
 
 // TODO: Report to some dedicated analytics tool
 - (void)reportInternalError:(NSString *) sdkError {
-    // Add to report JSON: app key + device info (storage status, device model, iOS version, etc.)
+    //TODO: Add to report JSON: app key + device info (storage status, device model, iOS version, etc.)
 }
 
 -(void) onAppIsLoading {
@@ -418,17 +418,18 @@ __strong static CrashOpsController *_shared;
             DebugLogArgs(@"%@", logFileUrlPath);
 
             NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
-
+            
             if (![logFileJson length]) {
                 [CrashOpsController logInternalError: [NSString stringWithFormat:@"Looks like this file was gone / has no content! (%@)", logFileUrlPath]];
                 continue;
             }
 
-            NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: logFileJson];
-            if ([jsonDictionary count]) {
-                // Intentionally using NSMutableDictionary becuase this dictionary is going to be changed right before the upload (will add more CrashOps fields).
-                NSMutableDictionary *_jsonDictionary = [CrashOpsController addCrashOpsConstantFields: jsonDictionary];
-                [CrashOpsController safeDictionary: allReports addObject: _jsonDictionary forKey: logFileUrlPath];
+            NSDictionary *kzCrashDictionary = [CrashOpsController toJsonDictionary: logFileJson];
+            NSMutableDictionary *crashOpsDictionary = [CrashOpsController addCrashOpsConstantFields: kzCrashDictionary];
+
+            BOOL didAdd = [CrashOpsController safeDictionary: allReports addObject: crashOpsDictionary forKey: logFileUrlPath];
+            if (!didAdd) {
+                [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to add CrashOps fields! (%@)", logFileUrlPath]];
             }
         }
 
@@ -441,6 +442,7 @@ __strong static CrashOpsController *_shared;
         }
 
         NSMutableArray *uploadTasks = [NSMutableArray new];
+        NSMutableArray *tasksCounters = [NSMutableArray new];
         // An old fashion, simplified, promise.all(..) / Future.all(..) / "synchronizer" :)
         LogsUploadCompletion completion = ^void(NSArray* sentReportPaths) {
             if ([sentReportPaths count] > 0) {
@@ -560,12 +562,13 @@ __strong static CrashOpsController *_shared;
                         [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload log, responseString: %@, file path: %@", responseString, reportPath.description]];
                     }
 
-                    [uploadTasks removeLastObject];
-                    if (uploadTasks.count == 0) {
-                        completion([sentReports copy]);
+                    [tasksCounters removeLastObject];
+                    if (tasksCounters.count == 0) {
+                        completion(sentReports);
                     }
                 }];
 
+                [tasksCounters addObject: @1];
                 [uploadTasks addObject: task];
             } else {
                 [sentReports addObject: reportPath];
@@ -573,7 +576,7 @@ __strong static CrashOpsController *_shared;
         }
 
         if (!appKey) {
-            completion([sentReports copy]);
+            completion(sentReports);
         }
 
         for (NSURLSessionDataTask *uploadTask in uploadTasks) {
@@ -618,6 +621,7 @@ __strong static CrashOpsController *_shared;
         }
 
         NSMutableArray *uploadTasks = [NSMutableArray new];
+        NSMutableArray *tasksCounters = [NSMutableArray new];
         // An old fashion, simplified, promise.all(..) / Future.all(..) / "synchronizer" :)
         LogsUploadCompletion completion = ^void(NSArray* reportPaths) {
             if ([reportPaths count] > 0) {
@@ -701,12 +705,13 @@ __strong static CrashOpsController *_shared;
                         [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload log, responseString: %@, file path: %@", responseString, reportPath.description]];
                     }
 
-                    [uploadTasks removeLastObject];
-                    if (uploadTasks.count == 0) {
-                        completion([sentReports copy]);
+                    [tasksCounters removeLastObject];
+                    if (tasksCounters.count == 0) {
+                        completion(sentReports);
                     }
                 }];
 
+                [tasksCounters addObject: @1];
                 [uploadTasks addObject: task];
             } else {
                 [sentReports addObject: reportPath];
@@ -714,7 +719,6 @@ __strong static CrashOpsController *_shared;
         }
         
         if (!appKey) {
-            //completion(sentReports);
             completion(@[]);
         }
 
@@ -805,6 +809,10 @@ __strong static CrashOpsController *_shared;
 }
 
 + (NSMutableDictionary *) addCrashOpsConstantFields:(NSDictionary *) reportJson {
+    if (![reportJson count]) {
+        return [reportJson mutableCopy];
+    }
+
     NSMutableDictionary *reportCopy = [reportJson mutableCopy];
     reportCopy[@"devicePlatform"] = @"ios";
     reportCopy[@"crashOpsSdkVersion"] = [CrashOps sdkVersion]; //[NSString stringWithCString:CrashOpsVersionString encoding: NSUTF8StringEncoding];
@@ -1100,7 +1108,7 @@ static void ourExceptionHandler(NSException *exception) {
         // Instead of NSJSONWritingPrettyPrinted, we're not using any option.
         jsonData = [NSJSONSerialization dataWithJSONObject: jsonDictionary options: kNilOptions error: &error];
     } @catch (NSException *exception) {
-        error = [NSError errorWithDomain:kSdkName code: 1 userInfo: @{@"exception":exception}];
+        error = [NSError errorWithDomain: kSdkName code: 1 userInfo: @{@"exception":exception}];
     } @finally {
         // ignore
     }
