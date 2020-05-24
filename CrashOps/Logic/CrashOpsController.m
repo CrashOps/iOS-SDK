@@ -427,7 +427,7 @@ __strong static CrashOpsController *_shared;
             NSDictionary *kzCrashDictionary = [CrashOpsController toJsonDictionary: logFileJson];
             NSMutableDictionary *crashOpsDictionary = [CrashOpsController addCrashOpsConstantFields: kzCrashDictionary];
 
-            BOOL didAdd = [CrashOpsController safeDictionary: allReports addObject: crashOpsDictionary forKey: logFileUrlPath];
+            BOOL didAdd = [allReports co_setOptionalObject: crashOpsDictionary forKey: logFileUrlPath];
             if (!didAdd) {
                 [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to add CrashOps fields! (%@)", logFileUrlPath]];
             }
@@ -522,7 +522,7 @@ __strong static CrashOpsController *_shared;
                         if ([additionalInfoDictionary count]) {
                             // Merging dictionaries
                             for (NSString *key in [additionalInfoDictionary allKeys]) {
-                                [CrashOpsController safeDictionary: jsonDictionary addObject: [additionalInfoDictionary objectForKey: key] forKey: key];
+                                [jsonDictionary co_setOptionalObject: [additionalInfoDictionary objectForKey: key] forKey: key];
                             }
                         }
                     }
@@ -616,7 +616,7 @@ __strong static CrashOpsController *_shared;
             NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
             NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: logFileJson];
             if ([jsonDictionary count]) {
-                [CrashOpsController safeDictionary:allReports addObject: jsonDictionary forKey: logFileUrlPath];
+                [allReports co_setOptionalObject: jsonDictionary forKey: logFileUrlPath];
             }
         }
 
@@ -734,6 +734,7 @@ __strong static CrashOpsController *_shared;
 - (void) uploadLogs {
     [[self coGlobalOperationQueue] addOperationWithBlock:^{
         if (![CrashOps shared].isEnabled) return;
+        if (self.crashMonitorAPI == nil) return;
         if (!self.appKey) return;
         
         if (self.isUploading) return;
@@ -1028,24 +1029,24 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSMutableDictionary *jsonReport = [NSMutableDictionary new];
 
     NSThread *current = [NSThread currentThread];
-    [CrashOpsController safeDictionary: jsonReport addObject: [current description] forKey: @"currentThread"];
+    [jsonReport co_setOptionalObject: [current description] forKey: @"currentThread"];
 
     NSMutableArray *stackTrace;
 
     if (exception) {
-        stackTrace = exception.callStackSymbols.mutableCopy;
-        [CrashOpsController safeDictionary: jsonReport addObject: exception.reason forKey: @"reason"];
+        stackTrace = [exception.callStackSymbols mutableCopy];
+        [jsonReport co_setOptionalObject: exception.reason forKey: @"reason"];
         if (exception.userInfo) {
-            [CrashOpsController safeDictionary: jsonReport addObject: exception.userInfo forKey: @"moreInfo"];
+            [jsonReport co_setOptionalObject: exception.userInfo forKey: @"moreInfo"];
         }
     } else {
         stackTrace = [[NSThread callStackSymbols] mutableCopy];
         [stackTrace removeObjectAtIndex: 0];
     }
 
-    [CrashOpsController safeDictionary: jsonReport addObject: stackTrace forKey: @"stackTrace"];
+    [jsonReport co_setOptionalObject: stackTrace forKey: @"stackTrace"];
 
-    [CrashOpsController safeDictionary: jsonReport addObject: CrashOps.shared.metadata forKey: @"metadata"];
+    [jsonReport co_setOptionalObject: CrashOps.shared.metadata forKey: @"metadata"];
     
 //    [jsonReport setObject: [NSBundle allFrameworks] forKey: @"allFrameworks"];
 
@@ -1323,19 +1324,25 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
     return [g_dateFormatter stringFromDate:date];
 }
 
-+ (BOOL) safeDictionary:(NSMutableDictionary *) safeDictionary addObject:(NSObject *) obj forKey: (id<NSCopying> _Nonnull) key {
-    BOOL didAdd = NO;
-    if (safeDictionary == nil) return didAdd;
+@end
 
-    if (obj && key) {
-        [safeDictionary setObject: obj forKey: key];
+@implementation NSMutableDictionary (NilSafeDictionary)
+
+- (BOOL)co_setOptionalObject:(id)anObject forKey:(id<NSCopying>)aKey {
+    BOOL didAdd = NO;
+    if (!anObject) {
+        [CrashOpsController logInternalError: @"Prevented from adding a `nil` object!"];
+        return didAdd;
+    }
+
+    if (aKey) {
+        [self setObject: anObject forKey: aKey];
         didAdd = YES;
     } else {
-        [CrashOpsController logInternalError: @"Prevented from adding a `nil` field!"];
+        [CrashOpsController logInternalError: @"Prevented from adding an object for a `nil` key!"];
     }
     
     return didAdd;
 }
-
 
 @end

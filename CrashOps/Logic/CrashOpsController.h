@@ -46,3 +46,10 @@
 +(NSDictionary *) toJsonDictionary:(NSString *) jsonString;
 
 @end
+
+@interface NSMutableDictionary<KeyType, ObjectType> (NilSafeDictionary)
+
+- (BOOL) co_setOptionalObject:(ObjectType)anObject forKey:(KeyType <NSCopying>)aKey;
+
+@end
+
