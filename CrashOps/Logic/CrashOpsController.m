@@ -1326,7 +1326,7 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 
 @end
 
-@implementation NSMutableDictionary (NilSafeDictionary)
+@implementation NSMutableDictionary (CO_NilSafeDictionary)
 
 - (BOOL)co_setOptionalObject:(id)anObject forKey:(id<NSCopying>)aKey {
     BOOL didAdd = NO;

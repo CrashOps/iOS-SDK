@@ -47,7 +47,7 @@
 
 @end
 
-@interface NSMutableDictionary<KeyType, ObjectType> (NilSafeDictionary)
+@interface NSMutableDictionary<KeyType, ObjectType> (CO_NilSafeDictionary)
 
 - (BOOL) co_setOptionalObject:(ObjectType)anObject forKey:(KeyType <NSCopying>)aKey;
 
