@@ -22,8 +22,6 @@
 
 // Read more at: https://nshipster.com/method-swizzling/
 + (void) swizzleScreenAppearance {
-    [UIApplication swizzleDeviceShake];
-
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
         Class vcClass = [UIViewController class];
