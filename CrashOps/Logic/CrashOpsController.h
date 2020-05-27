@@ -13,7 +13,7 @@
 #endif
 
 #import <Foundation/Foundation.h>
-
+#import "ScreenTracer.h"
 /**
  A private class that is responsible on our core actions.
  */
@@ -29,6 +29,8 @@
 */
 @property (nonatomic, assign) BOOL isEnabled;
 
++ (CrashOpsController *) shared;
+
 /**
 *  Logs non-fatal errors.
 */
@@ -39,11 +41,15 @@
 */
 - (void) onChangedHandler;
 
+-(ScreenTracer *) screenTracer;
+
 +(BOOL) isDebugModeEnabled;
 
 +(NSString *) ipsFilesLibraryPath;
 
 +(NSDictionary *) toJsonDictionary:(NSString *) jsonString;
+
++(NSString *) toJsonString:(NSDictionary *) jsonDictionary;
 
 @end
 

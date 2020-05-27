@@ -24,7 +24,8 @@
 #import <AdSupport/ASIdentifierManager.h>
 #import <zlib.h>
 
-#import "ScreenTracer.h"
+#import "CrashOpsExtendedViewController+UIViewController.h"
+
 #import "ScreenDetails.h"
 
 typedef void(^FilesUploadCompletion)(NSInteger filesCount);
@@ -261,6 +262,8 @@ __strong static CrashOpsController *_shared;
 }
 
 - (void) onAppLaunched {
+    [UIViewController swizzleScreenAppearance];
+
     [[NSNotificationCenter defaultCenter] removeObserver: [[CrashOpsController shared] appFinishedLaunchObserver]];
 
     [[self coGlobalOperationQueue] addOperationWithBlock:^{
@@ -556,6 +559,9 @@ __strong static CrashOpsController *_shared;
                     } else {
                         if (responseStatusCode == 409) {
                             DebugLogArgs(@"Sent log that already saved in the past, file: %@", reportPath);
+                            [sentReports addObject: reportPath];
+                        } else if (responseStatusCode >= 400 && responseStatusCode < 500) {
+                            DebugLogArgs(@"Some client error occurred for file: %@", reportPath);
                             [sentReports addObject: reportPath];
                         }
 
@@ -1165,67 +1171,6 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 + (void) load {
     [[CrashOpsController shared] onAppIsLoading];
     DebugLog(@"CrashOps library is being loaded");
-    
-    [CrashOpsController swizzleScreenAppearance];
-}
-
-// https://nshipster.com/method-swizzling/
-+ (void) swizzleScreenAppearance {
-    static dispatch_once_t onceToken;
-    dispatch_once(&onceToken, ^{
-        Class vcClass = [UIViewController class];
-        Class thisClass = [CrashOpsController class];
-
-        SEL originalSelector = @selector(viewDidAppear:);
-        SEL swizzledSelector = @selector(co_onViewAppeared:);
-
-        Method originalMethod = class_getInstanceMethod(vcClass, originalSelector);
-        Method swizzledMethod = class_getInstanceMethod(thisClass, swizzledSelector);
-
-        // Apple:
-        // "Discussion:
-//        'class_addMethod' will add an override of a superclass's implementation, but will not replace an existing implementation in this class (Good!). To change an existing implementation, use method_setImplementation.
-//        An Objective-C method is simply a C function that take at least two arguments — 'self' (the executor instance) and 'cmd' (the selector)."
-        BOOL didAddMethod =
-            class_addMethod(vcClass,
-                originalSelector,
-                method_getImplementation(swizzledMethod),
-                method_getTypeEncoding(swizzledMethod));
-
-        if (didAddMethod) {
-            class_replaceMethod(thisClass,
-                swizzledSelector,
-                method_getImplementation(originalMethod),
-                method_getTypeEncoding(originalMethod));
-        } else {
-            method_exchangeImplementations(originalMethod, swizzledMethod);
-        }
-    });
-}
-
-// The swizzled methods
--(void) co_onViewAppeared:(BOOL) animated {
-    if (![CrashOps shared].isTracingScreens) return;
-    // Hmmm... this line won't work although "NSHipster" said we should call it.
-    //[self co_onViewAppeared:animated];
-
-    if ([self isKindOfClass: [UIViewController class]]) {
-        // ignoring warning: "Incompatible pointer types initializing 'UIViewController *' with an expression of type 'CrashOpsController *'"
-        UIViewController *appearedViewController = self;
-        [[[CrashOpsController shared] screenTracer] addViewController: appearedViewController];
-        
-//        [co_ToastMessage show: [NSString stringWithFormat:@"viewDidAppear: %@", appearedViewController] delayInSeconds: 2 onDone:^{
-//            // [co_ToastMessage show: @"toast done presenting..." delayInSeconds: 10 onDone: nil];
-//        }];
-
-//        NSMutableArray *traces = [NSMutableArray new];
-//        for (ScreenDetails *details in [[CrashOpsController shared] screenTracer].breadcrumbsReport) {
-//            [traces addObject: [details toDictionary]];
-//        }
-//        NSString *jsonString = [CrashOpsController toJsonString:@{@"traces": traces}];
-
-//        [co_ToastMessage show: [NSString stringWithFormat:@"traces so far: %@", jsonString] delayInSeconds:5 onDone: nil];
-    }
 }
 
 + (NSDictionary *) getDeviceInfo {
