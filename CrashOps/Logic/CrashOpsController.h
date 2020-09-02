@@ -25,11 +25,16 @@
 @property (nonatomic, strong) NSString *appKey;
 
 /**
- *  Determines whether the SDK is enabled or not, it's set to true by default.
+ *  Determines whether the SDK is enabled or not, it's set to `true` by default.
 */
 @property (nonatomic, assign) BOOL isEnabled;
 
 + (CrashOpsController *) shared;
+
+/**
+*  CrashOps library file system path.
+*/
+-(NSString *) crashOpsLibraryPath;
 
 /**
 *  Logs non-fatal errors.
@@ -39,7 +44,7 @@
 /**
 *  Notifies that the host app changed its handler.
 */
-- (void) onChangedHandler;
+- (void) onHandlerChanged;
 
 -(ScreenTracer *) screenTracer;
 
@@ -58,4 +63,3 @@
 - (BOOL) co_setOptionalObject:(ObjectType)anObject forKey:(KeyType <NSCopying>)aKey;
 
 @end
-
