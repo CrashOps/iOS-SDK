@@ -76,7 +76,7 @@ static NSString * const lock = @"co_locker";
 }
 
 + (NSString *)sdkVersion {
-    return @"0.2.15";
+    return @"0.2.16";
 }
 
 - (void) crash {
@@ -100,7 +100,7 @@ __strong static CrashOps *_sharedInstance;
 - (void)setPreviousCrashReports:(PreviousReportsHandler) handler {
     _previousCrashReports = handler;
 
-    [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) onChangedHandler];
+    [[CrashOpsController shared] onHandlerChanged];
 }
 
 - (void)setAppKey:(NSString *)crashOpsAppKey {

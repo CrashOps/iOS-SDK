@@ -45,6 +45,7 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 @property (nonatomic, strong) NSArray *previousErrorLogFilesList;
 @property (nonatomic, strong) NSArray *previousCrashLogFilesList;
 
+/// This is the SDK's main queue, it used for several reasons. It provides smoother UI experience plus handles collections safely to avoid concurrent modifications.
 @property (nonatomic) NSOperationQueue* coGlobalOperationQueue;
 @property (nonatomic, assign) KSCrashMonitorAPI* crashMonitorAPI;
 @property (nonatomic, assign) BOOL didAppFinishLaunching;
@@ -176,7 +177,7 @@ __strong static CrashOpsController *_shared;
     return _shared.isDebugModeEnabled;
 }
 
-- (void)onChangedHandler {
+- (void)onHandlerChanged {
     [self uploadLogs];
 }
 
@@ -207,8 +208,12 @@ __strong static CrashOpsController *_shared;
 
     isEnabled = isOn;
     isEnabled_Optional = [NSNumber numberWithBool: isOn];
+    
+    [self setupIfNeeded];
+}
 
-    if (isOn) {
+- (void) setupIfNeeded {
+    if (isEnabled) {
         if (crashMonitorAPI == nil) {
             crashMonitorAPI = kscm_nsexception_getAPI();
             if (NSGetUncaughtExceptionHandler() != exceptionHandlerPtr) {
@@ -282,11 +287,11 @@ __strong static CrashOpsController *_shared;
 -(void) setupFromInfoPlist {
     NSString *infoPlistPath = [[NSBundle mainBundle] pathForResource:@"CrashOpsConfig-info" ofType:@"plist"];
     NSDictionary* infoPlist = [NSDictionary dictionaryWithContentsOfFile: infoPlistPath];
+    if (!infoPlist) {
+        infoPlist = @{};
+    }
 
     NSString* appKey = infoPlist[@"APPLICATION_KEY"];
-    if (appKey == nil) {
-        appKey = @"";
-    }
 
     NSString* isDisabledOnRelease = infoPlist[@"IS_DISABLED_ON_RELEASE"];
     if (isDisabledOnRelease == nil) {
@@ -295,10 +300,6 @@ __strong static CrashOpsController *_shared;
     BOOL config_isDisabledOnRelease = isDisabledOnRelease.boolValue;
 
     NSString* isTracingScreens = infoPlist[@"IS_TRACING_SCREENS"];
-    if (isTracingScreens == nil) {
-        isTracingScreens = @"1";
-    }
-    BOOL config_isTracingScreens = isTracingScreens.boolValue;
 
     NSString* _isDebugModeEnabled = infoPlist[@"IS_DEBUG_MODE_ENABLED"];
     if (_isDebugModeEnabled == nil) {
@@ -313,13 +314,7 @@ __strong static CrashOpsController *_shared;
     BOOL config_isDisabledOnDebug = isDisabledOnDebug.boolValue;
 
     NSString* isEnabledString = infoPlist[@"IS_ENABLED"];
-    if (isEnabledString == nil) {
-        isEnabledString = @"1";
-    }
-    BOOL config_isEnabled = isEnabledString.boolValue;
 
-    BOOL isEnabled = config_isEnabled;
-    
     if (CrashOps.isRunningOnDebugMode && config_isDisabledOnDebug) {
         isEnabled = NO;
     }
@@ -328,9 +323,16 @@ __strong static CrashOpsController *_shared;
         isEnabled = NO;
     }
 
-    [CrashOps shared].isEnabled = isEnabled;
-    [CrashOps shared].isTracingScreens = config_isTracingScreens;
-    [CrashOps shared].appKey = appKey;
+    if (isEnabledString != nil) {
+        BOOL config_isEnabled = isEnabledString.boolValue;
+        [CrashOps shared].isEnabled = config_isEnabled;
+    }
+
+    if (appKey != nil) {
+        [CrashOps shared].appKey = appKey;
+    }
+
+    [self setupIfNeeded];
 }
 
 -(void)runTests {
@@ -364,8 +366,8 @@ __strong static CrashOpsController *_shared;
         appKey = nil;
     }
 
-    if ([[NSFileManager defaultManager] fileExistsAtPath: [self errorsLibraryPath]]) {
-        NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: [self errorsLibraryPath]] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+    if ([[NSFileManager defaultManager] fileExistsAtPath: [self errorsFolderPath]]) {
+        NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: [self errorsFolderPath]] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
         return filesList;
     }
 
@@ -389,22 +391,14 @@ __strong static CrashOpsController *_shared;
 // ======================================================================
 
 - (void) uploadCrashes:(FilesUploadCompletion) onDone {
-    NSString *basePath = [KSCrash sharedInstance].basePath;
-    if (!basePath) {
-        if (onDone) {
-            onDone(0);
-        }
-
-        return;
-    }
-
-    NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Reports"];
     NSString *appKey = [CrashOpsController shared].appKey;
     if (!(appKey && [appKey length] > 0 && [appKey length] < 100)) {
         appKey = nil;
     }
 
-    if ([[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
+    NSString *reportsPath = [self crashesFolderPath];
+
+    if (reportsPath && [reportsPath length] && [[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
         NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: reportsPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
 
         if (filesList.count == 0) {
@@ -415,26 +409,7 @@ __strong static CrashOpsController *_shared;
             return;
         }
 
-        NSMutableDictionary *allReports = [NSMutableDictionary new];
-
-        for (NSURL *logFileUrlPath in filesList) {
-            DebugLogArgs(@"%@", logFileUrlPath);
-
-            NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
-            
-            if (![logFileJson length]) {
-                [CrashOpsController logInternalError: [NSString stringWithFormat:@"Looks like this file was gone / has no content! (%@)", logFileUrlPath]];
-                continue;
-            }
-
-            NSDictionary *kzCrashDictionary = [CrashOpsController toJsonDictionary: logFileJson];
-            NSMutableDictionary *crashOpsDictionary = [CrashOpsController addCrashOpsConstantFields: kzCrashDictionary];
-
-            BOOL didAdd = [allReports co_setOptionalObject: crashOpsDictionary forKey: logFileUrlPath];
-            if (!didAdd) {
-                [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to add CrashOps fields! (%@)", logFileUrlPath]];
-            }
-        }
+        NSMutableDictionary *allReports = [self prepareCrashLogsToUpload: filesList];
 
         if (allReports.count == 0) {
             if (onDone) {
@@ -551,27 +526,32 @@ __strong static CrashOpsController *_shared;
                         wasRequestSuccessful = responseStatusCode >= 200 && responseStatusCode < 300;
                     }
 
-                    if (wasRequestSuccessful) {
-                        if (responseStatusCode == 202) {
-                            DebugLogArgs(@"Accepted log and saved, file: %@", reportPath);
-                            [sentReports addObject: reportPath];
+                    [[self coGlobalOperationQueue] addOperationWithBlock:^{
+                        if (wasRequestSuccessful) {
+                            if (responseStatusCode == 202) {
+                                DebugLogArgs(@"Accepted log and saved, file: %@", reportPath);
+                                [sentReports addObject: reportPath];
+                            }
+                        } else {
+                            if (responseStatusCode >= 400 && responseStatusCode < 500) {
+                                // Integratoin error occured - deleting log anyway to avoid a large "history" folder size.
+                                [sentReports addObject: reportPath];
+                                
+                                if (responseStatusCode == 409) {
+                                    DebugLogArgs(@"This log that already sent in the past, file: %@", reportPath);
+                                } else {
+                                    DebugLogArgs(@"Some client error occurred for file: %@", reportPath);
+                                }
+                            }
+                            
+                            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload log, responseString: %@, file path: %@", responseString, reportPath.description]];
                         }
-                    } else {
-                        if (responseStatusCode == 409) {
-                            DebugLogArgs(@"Sent log that already saved in the past, file: %@", reportPath);
-                            [sentReports addObject: reportPath];
-                        } else if (responseStatusCode >= 400 && responseStatusCode < 500) {
-                            DebugLogArgs(@"Some client error occurred for file: %@", reportPath);
-                            [sentReports addObject: reportPath];
+                        
+                        [tasksCounters removeLastObject];
+                        if (tasksCounters.count == 0) {
+                            completion(sentReports);
                         }
-
-                        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload log, responseString: %@, file path: %@", responseString, reportPath.description]];
-                    }
-
-                    [tasksCounters removeLastObject];
-                    if (tasksCounters.count == 0) {
-                        completion(sentReports);
-                    }
+                    }];
                 }];
 
                 [tasksCounters addObject: @1];
@@ -588,12 +568,16 @@ __strong static CrashOpsController *_shared;
         for (NSURLSessionDataTask *uploadTask in uploadTasks) {
             [uploadTask resume];
         }
+    } else {
+        if (onDone) {
+            onDone(0);
+        }
     }
 }
 
 - (void) uploadErrors:(FilesUploadCompletion) onDone {
     NSString *appKey = [CrashOpsController shared].appKey;
-    if (!(appKey && [appKey length] > 0 && [appKey length] < 100)) {
+    if (!(appKey && [appKey isKindOfClass: [NSString class]] && [appKey length] > 0 && [appKey length] < 100)) {
         appKey = nil;
 
         if (onDone) {
@@ -603,8 +587,10 @@ __strong static CrashOpsController *_shared;
         return;
     }
 
-    if ([[NSFileManager defaultManager] fileExistsAtPath: [self errorsLibraryPath]]) {
-        NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: [self errorsLibraryPath]] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+    NSString *reportsPath = [self errorsFolderPath];
+
+    if ([[NSFileManager defaultManager] fileExistsAtPath: reportsPath]) {
+        NSArray *filesList = [[NSFileManager defaultManager] contentsOfDirectoryAtURL:[NSURL URLWithString: reportsPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
 
         if (filesList.count == 0) {
             if (onDone) {
@@ -700,21 +686,38 @@ __strong static CrashOpsController *_shared;
                     DebugLogArgs(@"%@", responseString);
 
                     BOOL wasRequestSuccessful = false;
+                    NSInteger responseStatusCode = 100;
                     if (response && [response isKindOfClass: [NSHTTPURLResponse class]]) {
-                        NSInteger responseStatusCode = ((NSHTTPURLResponse *)response).statusCode;
+                        responseStatusCode = ((NSHTTPURLResponse *)response).statusCode;
                         wasRequestSuccessful = responseStatusCode >= 200 && responseStatusCode < 300;
                     }
 
-                    if (wasRequestSuccessful) {
-                        [sentReports addObject: reportPath];
-                    } else {
-                        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload log, responseString: %@, file path: %@", responseString, reportPath.description]];
-                    }
-
-                    [tasksCounters removeLastObject];
-                    if (tasksCounters.count == 0) {
-                        completion(sentReports);
-                    }
+                    [[self coGlobalOperationQueue] addOperationWithBlock:^{
+                        if (wasRequestSuccessful) {
+                            if (responseStatusCode == 202) {
+                                DebugLogArgs(@"Accepted log and saved, file: %@", reportPath);
+                                [sentReports addObject: reportPath];
+                            }
+                        } else {
+                            if (responseStatusCode >= 400 && responseStatusCode < 500) {
+                                // Integratoin error occured - deleting log anyway to avoid a large "history" folder size.
+                                [sentReports addObject: reportPath];
+                                
+                                if (responseStatusCode == 409) {
+                                    DebugLogArgs(@"This log that already sent in the past, file: %@", reportPath);
+                                } else {
+                                    DebugLogArgs(@"Some client error occurred for file: %@", reportPath);
+                                }
+                            }
+                            
+                            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload log, responseString: %@, file path: %@", responseString, reportPath.description]];
+                        }
+                        
+                        [tasksCounters removeLastObject];
+                        if (tasksCounters.count == 0) {
+                            completion(sentReports);
+                        }
+                    }];
                 }];
 
                 [tasksCounters addObject: @1];
@@ -731,7 +734,36 @@ __strong static CrashOpsController *_shared;
         for (NSURLSessionDataTask *uploadTask in uploadTasks) {
             [uploadTask resume];
         }
+    } else {
+        if (onDone) {
+            onDone(0);
+        }
     }
+}
+
+- (NSMutableDictionary *) prepareCrashLogsToUpload: (NSArray *) fileUrlsList {
+    NSMutableDictionary *allReports = [NSMutableDictionary new];
+
+    for (NSURL *logFileUrlPath in fileUrlsList) {
+        DebugLogArgs(@"%@", logFileUrlPath);
+
+        NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
+        
+        if (![logFileJson length]) {
+            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Looks like this file was gone / has no content! (%@)", logFileUrlPath]];
+            continue;
+        }
+
+        NSDictionary *kzCrashDictionary = [CrashOpsController toJsonDictionary: logFileJson];
+        NSMutableDictionary *crashOpsDictionary = [CrashOpsController addCrashOpsConstantFields: kzCrashDictionary];
+
+        BOOL didAdd = [allReports co_setOptionalObject: crashOpsDictionary forKey: logFileUrlPath];
+        if (!didAdd) {
+            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to add CrashOps fields! (%@)", logFileUrlPath]];
+        }
+    }
+    
+    return allReports;
 }
 
 /** Uploads pending log files.
@@ -891,12 +923,17 @@ Creates a separated screen traces details file so CrashOps won't interrupt KZCra
 Later (on next app launch) CrashOps will merge these traces with the crash event that created here.
 */
 -(void) saveCurrentScreenTracesSnapshot:(NSString *) screenTracesSnapshotId {
+    if (!screenTracesSnapshotId) { return; }
+    if (![screenTracesSnapshotId length]) { return; }
+
     // Logging screen traces for with 'screenTracesSnapshotId'
     NSString *filePath = [[self tracesLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"screen_traces_%@.log", screenTracesSnapshotId]];
 
+    if (![filePath length]) { return; }
+
     NSMutableArray *traces = [NSMutableArray new];
     for (ScreenDetails *details in [[CrashOpsController shared] screenTracer].breadcrumbsReport) {
-        [traces addObject:[details toDictionary]];
+        [traces addObject: [details toDictionary]];
     }
 
     NSData *screenTracesData = [CrashOpsController toJsonData: @{@"screenTraces": traces}];
@@ -911,9 +948,7 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
 }
 
 -(void) handleException:(NSException *) exception {
-    if (co_oldHandler) {
-        co_oldHandler(exception);
-    }
+    [self passToOtherExceptionHadlers: exception];
 
     if ([CrashOps shared].isEnabled) {
         // Crash occurred, already handled by KZCrash.
@@ -921,6 +956,16 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
 
     if ([CrashOps shared].appExceptionHandler) {
         [CrashOps shared].appExceptionHandler(exception);
+    }
+}
+
+/**
+ Passing the exception to other exception handlers in the app.
+ It's on purpose on a dedicated method so it will appear in the log, that CrashOps just passed it to others.
+*/
+-(void) passToOtherExceptionHadlers:(NSException *) exception {
+    if (co_oldHandler) {
+        co_oldHandler(exception);
     }
 }
 
@@ -938,7 +983,7 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
 
     NSString *nowString = [CrashOpsController stringFromDate: now withFormat: @"yyyy-MM-dd-HH-mm-ss-SSS_ZZZ"];
 
-    NSString *filePath = [[self errorsLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"ios_error_%@_%@.log", nowString, [[NSUUID UUID] UUIDString]]];
+    NSString *filePath = [[self errorsFolderPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"ios_error_%@_%@.log", nowString, [[NSUUID UUID] UUIDString]]];
 
     NSMutableArray *screenTraces = [NSMutableArray new];
     for (ScreenDetails *details in [[CrashOpsController shared] screenTracer].breadcrumbsReport) {
@@ -971,7 +1016,15 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     return didSave;
 }
 
--(NSString *) errorsLibraryPath {
+-(NSString *) crashesFolderPath {
+    NSString *basePath = [KSCrash sharedInstance].basePath;
+    if (!basePath) return @"";
+
+    NSString *reportsPath = [basePath stringByAppendingPathComponent: @"Reports"];
+    return reportsPath;
+}
+
+-(NSString *) errorsFolderPath {
     if (errorsPath != nil) {
         return errorsPath;
     }
@@ -979,14 +1032,22 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSString *path = [self.crashOpsLibraryPath stringByAppendingPathComponent: @"Errors"];
 
     BOOL isDir = YES;
+    BOOL isCreated = NO;
+
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
             DebugLogArgs(@"Error: Create folder failed %@", path);
+        } else {
+            isCreated = YES;
         }
+    } else {
+        isCreated = YES;
     }
 
-    errorsPath = path;
+    if (isCreated) {
+        errorsPath = path;
+    }
 
     return errorsPath;
 }
@@ -999,14 +1060,22 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSString *path = [self.crashOpsLibraryPath stringByAppendingPathComponent: @"Traces"];
 
     BOOL isDir = YES;
+    BOOL isCreated = NO;
+
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
             DebugLogArgs(@"Error: Create folder failed %@", path);
+        } else {
+            isCreated = YES;
         }
+    } else {
+        isCreated = YES;
     }
 
-    tracesPath = path;
+    if (isCreated) {
+        tracesPath = path;
+    }
 
     return tracesPath;
 }
@@ -1019,14 +1088,22 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSString *path = [[NSSearchPathForDirectoriesInDomains(NSLibraryDirectory, NSUserDomainMask, YES) lastObject] stringByAppendingPathComponent: @"CrashOps"];
 
     BOOL isDir = YES;
+    BOOL isCreated = NO;
+
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
             DebugLogArgs(@"Error: Create folder failed %@", path);
+        } else {
+            isCreated = YES;
         }
+    } else {
+        isCreated = YES;
     }
 
-    libraryPath = path;
+    if (isCreated) {
+        libraryPath = path;
+    }
 
     return libraryPath;
 }
@@ -1184,14 +1261,13 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 
     CGRect screenSize = [[UIScreen mainScreen] bounds];
     
-    return @{
+    NSMutableDictionary *info = [@{
       @"name" : [device name],
       @"screenSize": [NSString stringWithFormat:@"%ldx%ld", (long)((NSInteger)screenSize.size.width), (long)((NSInteger)screenSize.size.height)],
       @"systemName" : [device systemName],
       @"systemVersion" : [device systemVersion],
       @"model" : [device model],
       @"localizedModel" : [device localizedModel],
-      @"identifierForVendor" : [[device identifierForVendor] UUIDString],
       @"isPhysicalDevice" : CrashOpsController.isRunningOnSimulator ? @"false" : @"true",
       @"utsname" : @{
         @"sysname" : @(un.sysname),
@@ -1200,7 +1276,12 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
         @"version" : @(un.version),
         @"machine" : @(un.machine),
       }
-    };
+    } mutableCopy];
+
+    // Setting nullable values
+    [info co_setOptionalObject: [[device identifierForVendor] UUIDString] forKey: @"identifierForVendor"];
+
+    return [info copy];
 }
 
 + (NSString *) advertisingIdentifierString {
