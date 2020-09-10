@@ -21,7 +21,7 @@
 
 @implementation ViewDetails
 
-- (instancetype)initWithView:(UIView *)view depth:(NSInteger) depth {
+- (instancetype) initWithView:(UIView *)view depth:(NSInteger) depth {
     self = [super init];
 
     if (self) {
@@ -31,9 +31,9 @@
         _dimensions = view.frame.size;
         _position = view.frame.origin;
 
-        for (UIView *subview in view.subviews) {
-            [_children addObject: [[ViewDetails alloc] initWithView: subview depth: depth + 1]];
-        }
+//        for (UIView *subview in view.subviews) {
+//            [_children addObject: [[ViewDetails alloc] initWithView: subview depth: depth + 1]];
+//        } TODO: Flush data to disk to avoid OOM errors.
     }
 
     return self;
@@ -60,7 +60,7 @@
 }
 
 - (NSString *)description {
-    NSString *detailsDescription = [NSString stringWithFormat:@"{'className': %@, 'dimensions': (%.2f x %.2f)", _className, _dimensions.width, _dimensions.height];
+    NSString *detailsDescription = [NSString stringWithFormat:@"{'className': %@, 'dimensions': {x: %.2f, y: %.2f}", _className, _dimensions.width, _dimensions.height];
 
     if ([self isLeaf] == NO) {
         NSString *children = @"[";
@@ -69,9 +69,9 @@
         }
         children = [children stringByAppendingString: @"]"];
 
-        detailsDescription = [NSString stringWithFormat:@", 'children: %@'}", children];
+        detailsDescription = [NSString stringWithFormat:@"%@, 'children: %@'}", detailsDescription, children];
     } else {
-        detailsDescription = [NSString stringWithFormat:@"}"];
+        detailsDescription = [NSString stringWithFormat:@"%@}", detailsDescription];
     }
 
     return detailsDescription;

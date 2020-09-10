@@ -328,6 +328,11 @@ __strong static CrashOpsController *_shared;
         [CrashOps shared].isEnabled = config_isEnabled;
     }
 
+    if (isTracingScreens != nil) {
+        BOOL config_isTracingScreens = isTracingScreens.boolValue;
+        [CrashOps shared].isTracingScreens = config_isTracingScreens;
+    }
+
     if (appKey != nil) {
         [CrashOps shared].appKey = appKey;
     }
@@ -342,6 +347,11 @@ __strong static CrashOpsController *_shared;
     
     COAssert([CrashOpsController toJsonDictionary: nil].count == 0, @"nil strings should become empty dictionaries", YES);
 
+    NSData *screenTracesData = [CrashOpsController toJsonData: @{@"screenTraces": @[]}];
+    NSString *screenTracesJsonString = [CrashOpsController toJsonString: @{@"screenTraces": @[]}];
+    COAssert(screenTracesData != nil, @"nil strings should become empty dictionaries", NO);
+    COAssert(screenTracesJsonString != nil, @"nil strings should become empty dictionaries", NO);
+    
 //    dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 //        BOOL didCatch = NO;
 //        @try {
@@ -358,6 +368,15 @@ __strong static CrashOpsController *_shared;
 //    });
 
     COAssert([CrashOpsController toJsonData: nil].length == 0, @"Empty strings should become empty data", NO);
+    
+    NSString *infoPlistPath = [[NSBundle mainBundle] pathForResource:@"CrashOpsConfig-info" ofType:@"plist"];
+    
+    NSURL *plistFilePathUrl = [NSURL URLWithString: infoPlistPath];
+    NSURL *nonExistingFilePathUrl = [NSURL URLWithString: [infoPlistPath stringByReplacingOccurrencesOfString:[infoPlistPath lastPathComponent] withString:@"CrashOpsConfig-info.xml"]];
+
+    // This should return an empty dictionary becuase none of these paths contain JSON representations
+    NSMutableDictionary *filesToUpload = [self prepareCrashLogsToUpload: @[plistFilePathUrl, nonExistingFilePathUrl]];
+    COAssert(filesToUpload.count == 0, @"Expected files list to be empty!", YES);
 }
 
 - (NSArray *) errorLogFilesList {

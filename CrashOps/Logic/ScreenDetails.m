@@ -37,7 +37,7 @@
 }
 
 - (NSString *)description {
-    return [NSString stringWithFormat:@"{'className': %@, 'view hierarchy': %@}", _className, _viewDetails.description];
+    return [NSString stringWithFormat:@"{'className': %@, 'viewHierarchy': %@}", _className, _viewDetails.description];
 }
 
 - (NSDictionary *)toDictionary {
