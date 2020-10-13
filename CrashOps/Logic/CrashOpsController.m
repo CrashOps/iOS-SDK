@@ -53,6 +53,7 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 @property (nonatomic, assign) KSCrashMonitorAPI* crashMonitorAPI;
 @property (nonatomic, assign) BOOL didAppFinishLaunching;
 @property (nonatomic, assign) BOOL isUploading;
+@property (nonatomic, assign) BOOL didSendPresence;
 @property (nonatomic, assign) BOOL isDebugModeEnabled;
 
 @property (nonatomic, strong) ScreenTracer *screenTracer;
@@ -98,6 +99,7 @@ static NSString * const kSdkName = @"CrashOps";
 @synthesize isJailbroken_Optional;
 @synthesize didAppFinishLaunching;
 @synthesize isUploading;
+@synthesize didSendPresence;
 @synthesize crashMonitorAPI;
 @synthesize appKey;
 //@synthesize screenTracer;
@@ -127,6 +129,7 @@ __strong static CrashOpsController *_shared;
         isUploading = NO;
         isDebugModeEnabled = NO;
         isEnabled = YES;
+        didSendPresence = NO;
         coUserDefaults = [[NSUserDefaults alloc] initWithSuiteName: kSdkIdentifier];
         _screenTracer = [ScreenTracer new];
         appSessionId = [[NSUUID UUID] UUIDString];
@@ -253,6 +256,7 @@ __strong static CrashOpsController *_shared;
             crashMonitorAPI->setEnabled(YES);
         }
 
+        [self sendPresence];
         [self uploadLogs];
     } else {
         if (co_oldHandler != nil) {
@@ -297,7 +301,6 @@ __strong static CrashOpsController *_shared;
         [CrashOpsController shared].appKey = [[[CrashOpsController shared] coUserDefaults] stringForKey: kAppKey];
 
         [[CrashOpsController shared] setupFromInfoPlist];
-        [[CrashOpsController shared] sendPresence];
 
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [[CrashOpsController shared] runTests];
@@ -309,6 +312,9 @@ __strong static CrashOpsController *_shared;
 
 -(void) sendPresence {
     if (!isEnabled) return;
+    if (didSendPresence) return;
+    didSendPresence = YES;
+
     NSUInteger timestamp = (NSUInteger)_timestamp_milliseconds();
 
     NSMutableDictionary *deviceInfo = [[CrashOpsController getDeviceInfo] mutableCopy];
