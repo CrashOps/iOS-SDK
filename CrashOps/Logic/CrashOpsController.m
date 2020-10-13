@@ -21,7 +21,6 @@
 #import <sys/utsname.h>
 
 #import <objc/runtime.h>
-#import <AdSupport/ASIdentifierManager.h>
 #import <zlib.h>
 
 #import "CrashOpsExtendedViewController+UIViewController.h"
@@ -366,20 +365,20 @@ __strong static CrashOpsController *_shared;
         [[self coGlobalOperationQueue] addOperationWithBlock:^{
             if (wasRequestSuccessful) {
                 if (responseStatusCode == 202) {
-                    DebugLogArgs(@"Accepted log and saved, file: %@", sessionDetails);
+                    DebugLogArgs(@"Accepted session details and saved. Details: %@", sessionDetails);
                 }
             } else {
                 if (responseStatusCode >= 400 && responseStatusCode < 500) {
                     // Integratoin error occured - deleting log anyway to avoid a large "history" folder size.
                     
                     if (responseStatusCode == 409) {
-                        DebugLogArgs(@"This log that already sent in the past, file: %@", sessionDetails);
+                        DebugLogArgs(@"This session already sent in the past, details: %@", sessionDetails);
                     } else {
-                        DebugLogArgs(@"Some client error occurred for file: %@", sessionDetails);
+                        DebugLogArgs(@"Some client error occurred for details: %@", sessionDetails);
                     }
                 }
                 
-                [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to upload session details, response string: %@, file path: %@", responseString, sessionDetails]];
+                [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to send session details, response string: %@, file path: %@", responseString, sessionDetails]];
             }
         }];
     }];
