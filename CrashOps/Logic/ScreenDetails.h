@@ -12,6 +12,9 @@
 
 -(instancetype) initWithViewController:(UIViewController *) viewController;
 
+/// Note: This timestamp is actually in milliseconds, unlike Apple's common representation (as seconds).
+-(NSUInteger) timestamp;
+
 -(NSDictionary *) toDictionary;
 
 @end

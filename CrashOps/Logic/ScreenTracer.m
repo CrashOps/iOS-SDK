@@ -8,12 +8,7 @@
 
 #import "ScreenTracer.h"
 #import "ScreenDetails.h"
-
-@interface ScreenTracer () <ViewControllerTracer>
-
-@property (nonatomic, strong) NSMutableArray *collectedTraces;
-
-@end
+#import "CrashOpsController.h"
 
 @implementation ScreenTracer
 
@@ -22,22 +17,45 @@
     self = [super init];
 
     if (self) {
-        _collectedTraces = [NSMutableArray new];
+        //
     }
 
     return self;
 }
 
--(NSArray *) allTraces {
-    return [self.collectedTraces copy];
+-(void) addViewController:(UIViewController *)viewController {
+    ScreenDetails* screenDetails = [[ScreenDetails alloc] initWithViewController: viewController];
+
+    [[CrashOpsController shared] flushToDisk: screenDetails];
 }
 
-- (NSArray *) breadcrumbsReport {
-    return [self allTraces];
-}
+/**
+Creates a separated screen traces details file so CrashOps won't interrupt KZCrash logging operations.
+Later (on next app launch) CrashOps will merge these traces with the crash event that created here.
+*/
++(NSArray *) tracesReportForSessionId:(NSString *) sessionId {
+    NSMutableArray *allTraces = [NSMutableArray new];
+    if (!sessionId) { return allTraces; }
+    if (![sessionId length]) { return allTraces; }
 
-- (void) addViewController:(UIViewController *)viewController {
-    [self.collectedTraces addObject: [[ScreenDetails alloc] initWithViewController: viewController]];
+    NSString *screenTracesFolderPath = [CrashOpsController screenTracesFolderFromSessionId: sessionId];
+
+    NSArray *screenTraceFiles = [[NSFileManager defaultManager] contentsOfDirectoryAtPath: screenTracesFolderPath error: nil];
+
+    if ([screenTraceFiles count]) {
+        for (NSString *screenTraceFile in screenTraceFiles) {
+            NSString *screenTraceFilePath = [screenTracesFolderPath stringByAppendingPathComponent: screenTraceFile];
+            
+            NSString *traceJsonString = [NSString stringWithContentsOfFile: screenTraceFilePath encoding: NSUTF8StringEncoding error: nil];
+            [allTraces addObject: [CrashOpsController toJsonDictionary: traceJsonString]];
+        }
+    }
+
+    if ([screenTraceFiles count] != [allTraces count]) {
+        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed extract all screen traces from trace files: %@", screenTraceFiles]];
+    }
+
+    return [allTraces copy];
 }
 
 @end
