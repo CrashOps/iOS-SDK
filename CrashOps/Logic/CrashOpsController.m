@@ -337,6 +337,7 @@ __strong static CrashOpsController *_shared;
                                      @"timestamp": [NSString stringWithFormat:@"%lu", (unsigned long) timestamp],
                                      @"sdkVersion": [CrashOps sdkVersion],
                                      @"deviceId": [CrashOpsController deviceId],
+                                     @"devicePlatform": @"ios",
                                      @"deviceInfo": deviceInfo,
                                      @"crashopsApplicationKey": [CrashOpsController shared].appKey,
                                      @"iosVersion": [CrashOpsController iosVersion],
