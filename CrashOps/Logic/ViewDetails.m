@@ -31,9 +31,9 @@
         _dimensions = view.frame.size;
         _position = view.frame.origin;
 
-//        for (UIView *subview in view.subviews) {
-//            [_children addObject: [[ViewDetails alloc] initWithView: subview depth: depth + 1]];
-//        } TODO: Flush data to disk to avoid OOM errors.
+        for (UIView *subview in view.subviews) {
+            [_children addObject: [[ViewDetails alloc] initWithView: subview depth: depth + 1]];
+        }
     }
 
     return self;

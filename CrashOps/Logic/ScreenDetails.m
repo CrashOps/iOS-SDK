@@ -14,8 +14,7 @@
 
 @property (nonatomic, strong) NSString *className;
 @property (nonatomic, strong) ViewDetails *viewDetails;
-/// Note: This timestamp is actually in milliseconds, unlike Apple's common representation (with seconds).
-@property (nonatomic, assign) NSTimeInterval timestamp;
+@property (nonatomic, assign) NSUInteger timestamp;
 
 @end
 
@@ -30,18 +29,22 @@
 
         //[co_ToastMessage show: [_viewDetails description] delayInSeconds: 5 onDone: nil];
 
-        _timestamp = _timestamp_milliseconds();
+        _timestamp = (NSUInteger)_timestamp_milliseconds();
     }
 
     return self;
 }
 
-- (NSString *)description {
-    return [NSString stringWithFormat:@"{'className': %@, 'viewHierarchy': %@}", _className, _viewDetails.description];
+-(NSUInteger) timestamp {
+    return _timestamp;
 }
 
-- (NSDictionary *)toDictionary {
+-(NSDictionary *) toDictionary {
     return [ScreenDetails _toDictionary: self];
+}
+
+-(NSString *) description {
+    return [NSString stringWithFormat:@"{'className': %@, 'viewHierarchy': %@}", _className, _viewDetails.description];
 }
 
 +(NSDictionary *) _toDictionary:(ScreenDetails *) screenDetails {
@@ -52,6 +55,5 @@
 
     return screenDetailsDictionary;
 }
-
 
 @end

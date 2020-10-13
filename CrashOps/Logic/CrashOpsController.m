@@ -21,12 +21,9 @@
 #import <sys/utsname.h>
 
 #import <objc/runtime.h>
-#import <AdSupport/ASIdentifierManager.h>
 #import <zlib.h>
 
 #import "CrashOpsExtendedViewController+UIViewController.h"
-
-#import "ScreenDetails.h"
 
 typedef void(^FilesUploadCompletion)(NSInteger filesCount);
 
@@ -34,13 +31,18 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 
 @interface CrashOpsController()
 
+@property (nonatomic, strong) NSString *appSessionId;
 @property (nonatomic, strong) NSUserDefaults *coUserDefaults;
 @property (nonatomic, strong) NSString *libraryPath;
 @property (nonatomic, strong) NSString *errorsPath;
 @property (nonatomic, strong) NSString *tracesPath;
+@property (nonatomic, strong) NSString *currentTracesPath;
+@property (nonatomic, strong) NSString *eventsPath;
+@property (nonatomic, strong) NSString *sessionsPath;
 @property (nonatomic, strong) NSString *ipsFilesPath;
 @property (nonatomic, strong) NSObject *appFinishedLaunchObserver;
 @property (nonatomic, strong) NSNumber *isEnabled_Optional;
+@property (nonatomic, strong) NSNumber *isJailbroken_Optional;
 
 @property (nonatomic, strong) NSArray *previousErrorLogFilesList;
 @property (nonatomic, strong) NSArray *previousCrashLogFilesList;
@@ -50,6 +52,7 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 @property (nonatomic, assign) KSCrashMonitorAPI* crashMonitorAPI;
 @property (nonatomic, assign) BOOL didAppFinishLaunching;
 @property (nonatomic, assign) BOOL isUploading;
+@property (nonatomic, assign) BOOL didSendPresence;
 @property (nonatomic, assign) BOOL isDebugModeEnabled;
 
 @property (nonatomic, strong) ScreenTracer *screenTracer;
@@ -58,8 +61,8 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 
 @end
 
-#define DebugLog(msg) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg); }
-#define DebugLogArgs(msg, args) if (CrashOpsController.isDebugModeEnabled) { NSLog(msg, args); }
+#define DebugLog(msg) if (CrashOpsController.isDebugModeEnabled) { NSLog(@"[CrashOps] %@", msg); }
+#define DebugLogArgs(msg, args) if (CrashOpsController.isDebugModeEnabled) { NSLog(@"[CrashOps] %@", [NSString stringWithFormat: msg, args]); }
 
 #define COAssertToast(condition, message) COAssert(condition, message, YES)
 
@@ -80,18 +83,24 @@ static NSString * const kAppKey = @"co_AppKey";
 static NSString * const kSdkIdentifier = @"com.crashops.sdk";
 static NSString * const kSdkName = @"CrashOps";
 
+@synthesize appSessionId;
+@synthesize coUserDefaults;
 @synthesize libraryPath;
 @synthesize errorsPath;
 @synthesize tracesPath;
+@synthesize currentTracesPath;
+@synthesize eventsPath;
+@synthesize sessionsPath;
 @synthesize appFinishedLaunchObserver;
 @synthesize coGlobalOperationQueue;
 @synthesize isEnabled;
 @synthesize isEnabled_Optional;
+@synthesize isJailbroken_Optional;
 @synthesize didAppFinishLaunching;
 @synthesize isUploading;
+@synthesize didSendPresence;
 @synthesize crashMonitorAPI;
 @synthesize appKey;
-@synthesize coUserDefaults;
 //@synthesize screenTracer;
 @synthesize isDebugModeEnabled;
 
@@ -102,21 +111,27 @@ __strong static CrashOpsController *_shared;
 + (CrashOpsController *) shared {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        _shared = [[CrashOpsController alloc] init];
+        _shared = [[CrashOpsController alloc] initWithCoder: nil];
     });
     
     return _shared;
 }
 
-- (id)init {
+- (instancetype)init {
+    return [CrashOpsController shared];
+}
+
+- (instancetype)initWithCoder:(NSCoder *)coder {
     if (self = [super init]) {
         coGlobalOperationQueue = [[NSOperationQueue alloc] init];
         coGlobalOperationQueue.name = kSdkIdentifier;
         isUploading = NO;
         isDebugModeEnabled = NO;
         isEnabled = YES;
+        didSendPresence = NO;
         coUserDefaults = [[NSUserDefaults alloc] initWithSuiteName: kSdkIdentifier];
         _screenTracer = [ScreenTracer new];
+        appSessionId = [[NSUUID UUID] UUIDString];
     }
 
     return self;
@@ -127,8 +142,12 @@ __strong static CrashOpsController *_shared;
  */
 
 // That's new to me, taken from: https://medium.com/@pinmadhon/how-to-check-your-app-is-installed-on-a-jailbroken-device-67fa0170cf56
-+(BOOL)isJailbroken {
-    BOOL isJailbroken = NO;
+-(BOOL)isJailbroken {
+    if (isJailbroken_Optional) {
+        return [isJailbroken_Optional boolValue];
+    }
+
+    BOOL _isJailbroken = NO;
 #if !(TARGET_IPHONE_SIMULATOR)
     // Check 1 : existence of files that are common for jailbroken devices
     if ([[NSFileManager defaultManager] fileExistsAtPath:@"/Applications/Cydia.app"] ||
@@ -138,7 +157,7 @@ __strong static CrashOpsController *_shared;
         [[NSFileManager defaultManager] fileExistsAtPath:@"/etc/apt"] ||
         [[NSFileManager defaultManager] fileExistsAtPath:@"/private/var/lib/apt/"] ||
         [[UIApplication sharedApplication] canOpenURL:[NSURL URLWithString:@"cydia://package/com.example.package"]]) {
-        isJailbroken |= YES;
+        _isJailbroken |= YES;
     }
     FILE *f = NULL ;
     if ((f = fopen("/bin/bash", "r")) ||
@@ -147,7 +166,7 @@ __strong static CrashOpsController *_shared;
         (f = fopen("/usr/sbin/sshd", "r")) ||
         (f = fopen("/etc/apt", "r"))) {
         fclose(f);
-        isJailbroken |= YES;
+        _isJailbroken |= YES;
     }
     fclose(f);
     // Check 2 : Reading and writing in system directories (sandbox violation)
@@ -157,12 +176,13 @@ __strong static CrashOpsController *_shared;
                           encoding:NSUTF8StringEncoding error:&error];
     if(error == nil) {
         //Device is jailbroken
-        isJailbroken |= YES;
+        _isJailbroken |= YES;
     } else {
         [[NSFileManager defaultManager] removeItemAtPath:@"/private/jailbreak.txt" error:nil];
     }
 #endif
-    return isJailbroken;
+    isJailbroken_Optional = [NSNumber numberWithBool: _isJailbroken];
+    return [isJailbroken_Optional boolValue];
 }
 
 +(BOOL)isRunningOnSimulator {
@@ -203,6 +223,10 @@ __strong static CrashOpsController *_shared;
     }
 }
 
+- (NSString *) sessionId {
+    return [[CrashOpsController shared] appSessionId];
+}
+
 - (void) setIsEnabled:(BOOL)isOn {
     if (isEnabled_Optional != nil && isEnabled == isOn) return;
 
@@ -231,6 +255,7 @@ __strong static CrashOpsController *_shared;
             crashMonitorAPI->setEnabled(YES);
         }
 
+        [self sendPresence];
         [self uploadLogs];
     } else {
         if (co_oldHandler != nil) {
@@ -253,7 +278,7 @@ __strong static CrashOpsController *_shared;
     [[CrashOpsController shared] reportInternalError: sdkError];
 }
 
-// TODO: Report to some dedicated analytics tool
+// TODO: Report to our dedicated analytics tool
 - (void)reportInternalError:(NSString *) sdkError {
     //TODO: Add to report JSON: app key + device info (storage status, device model, iOS version, etc.)
 }
@@ -275,13 +300,90 @@ __strong static CrashOpsController *_shared;
         [CrashOpsController shared].appKey = [[[CrashOpsController shared] coUserDefaults] stringForKey: kAppKey];
 
         [[CrashOpsController shared] setupFromInfoPlist];
-        
+
         dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(1 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
             [[CrashOpsController shared] runTests];
         });
     }];
 
     //DebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
+}
+
+-(void) sendPresence {
+    if (!isEnabled) return;
+    if (didSendPresence) return;
+    didSendPresence = YES;
+
+    NSUInteger timestamp = (NSUInteger)_timestamp_milliseconds();
+
+    NSMutableDictionary *deviceInfo = [[CrashOpsController getDeviceInfo] mutableCopy];
+    NSDictionary *ksCrashSystemInfo = [[KSCrash sharedInstance] systemInfo];
+
+    if ([ksCrashSystemInfo count]) {
+        NSArray *keys = @[@"cpuType", @"cpuSubType", @"cpuArchitecture", @"storageSize", @"memorySize", @"usableMemory", @"freeMemory", @"kernelVersion", @"isJailbroken"];
+        for (NSString *key in keys) {
+            BOOL didAdd = [deviceInfo
+             co_setOptionalObject: [ksCrashSystemInfo objectForKey: key]
+             forKey: key];
+
+            if (!didAdd) {
+                DebugLog(@"Hmmmm...");
+            }
+        }
+    }
+
+    NSDictionary *sessionDetails = @{@"sessionId": appSessionId,
+                                     @"timestamp": [NSString stringWithFormat:@"%lu", (unsigned long) timestamp],
+                                     @"sdkVersion": [CrashOps sdkVersion],
+                                     @"deviceId": [CrashOpsController deviceId],
+                                     @"devicePlatform": @"ios",
+                                     @"deviceInfo": deviceInfo,
+                                     @"crashopsApplicationKey": [CrashOpsController shared].appKey,
+                                     @"iosVersion": [CrashOpsController iosVersion],
+    };
+
+    NSMutableURLRequest *request = [CrashOpsController prepareRequestWithBody: sessionDetails forEndpoint: @"ping"];
+
+    if (!request) {
+        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for sending ping: %@", sessionDetails]];
+        return;
+    }
+
+    [request addValue: appKey forHTTPHeaderField:@"crashops-application-key"];
+
+    NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
+        NSString *responseString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
+        DebugLogArgs(@"%@", responseString);
+
+        BOOL wasRequestSuccessful = false;
+        NSInteger responseStatusCode = 100;
+        if (response && [response isKindOfClass: [NSHTTPURLResponse class]]) {
+            responseStatusCode = ((NSHTTPURLResponse *)response).statusCode;
+            wasRequestSuccessful = responseStatusCode >= 200 && responseStatusCode < 300;
+        }
+
+        [[self coGlobalOperationQueue] addOperationWithBlock:^{
+            if (wasRequestSuccessful) {
+                if (responseStatusCode == 202) {
+                    DebugLogArgs(@"Accepted session details and saved. Details: %@", sessionDetails);
+                }
+            } else {
+                if (responseStatusCode >= 400 && responseStatusCode < 500) {
+                    // Integratoin error occured - deleting log anyway to avoid a large "history" folder size.
+                    
+                    if (responseStatusCode == 409) {
+                        DebugLogArgs(@"This session already sent in the past, details: %@", sessionDetails);
+                    } else {
+                        DebugLogArgs(@"Some client error occurred for details: %@", sessionDetails);
+                    }
+                }
+                
+                [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to send session details, response string: %@, file path: %@", responseString, sessionDetails]];
+            }
+        }];
+    }];
+
+    [task resume];
 }
 
 -(void) setupFromInfoPlist {
@@ -459,21 +561,8 @@ __strong static CrashOpsController *_shared;
 
                     if (appKey) {
                         // Delete this log because it was uploaded
-                        NSError *error;
                         NSString *eventId = [AppleCrashReportGenerator reportId: jsonDictionary];
-                        NSString *screenTracesFilePath = [[self tracesLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"screen_traces_%@.log", eventId]];
-
-                        BOOL didRemove = [[NSFileManager defaultManager] removeItemAtURL: reportPath error: &error];
-                        if (!didRemove || error) {
-                            [[CrashOpsController shared] reportInternalError: [NSString stringWithFormat:@"Failed to delete report file, error: %@", error]];
-                        }
-                        
-                        didRemove = [[NSFileManager defaultManager] removeItemAtPath: screenTracesFilePath error: &error];
-                        if (!didRemove || error) {
-                            if ([CrashOps shared].isTracingScreens) {
-                                [[CrashOpsController shared] reportInternalError: [NSString stringWithFormat:@"Failed to delete screen traces file file, error: %@", error]];
-                            }
-                        }
+                        [self cleanUpEventId: eventId andReportPath: reportPath];
                     }
                 }
 
@@ -507,25 +596,14 @@ __strong static CrashOpsController *_shared;
 //                NSDate *logTime = [AppleCrashReportGenerator crashDate: jsonDictionary];
                 //   the `eventId` is located under "report"->"id"
                 NSString *eventId = [AppleCrashReportGenerator reportId: jsonDictionary];
-//                NSString *timestamp = [CrashOpsController stringFromDate: logTime withFormat: nil];
 
-                NSString *screenTracesFilePath = [[self tracesLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"screen_traces_%@.log", eventId]];
+                NSArray *allTraces = [ScreenTracer tracesReportForSessionId: [CrashOpsController sessionIdFromEventId: eventId]];
 
-                if ([[NSFileManager defaultManager] fileExistsAtPath: screenTracesFilePath]) {
-                    NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfFile: screenTracesFilePath] encoding: NSUTF8StringEncoding];
-                    if (logFileJson && [logFileJson length]) {
-                        NSDictionary *additionalInfoDictionary = [CrashOpsController toJsonDictionary: logFileJson];
-
-                        if ([additionalInfoDictionary count]) {
-                            // Merging dictionaries
-                            for (NSString *key in [additionalInfoDictionary allKeys]) {
-                                [jsonDictionary co_setOptionalObject: [additionalInfoDictionary objectForKey: key] forKey: key];
-                            }
-                        }
-                    }
+                if ([allTraces count]) {
+                    [jsonDictionary co_setOptionalObject: allTraces forKey: @"screenTraces"];
                 }
 
-                NSMutableURLRequest *request = [CrashOpsController prepareRequestWithJson: jsonDictionary];
+                NSMutableURLRequest *request = [CrashOpsController prepareRequestWithBody: jsonDictionary forEndpoint: @"reports"];
 
                 if (!request) {
                     [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for file upload, file path: %@", reportPath]];
@@ -691,7 +769,7 @@ __strong static CrashOpsController *_shared;
                     continue;
                 }
 
-                NSMutableURLRequest *request = [CrashOpsController prepareRequestWithJson: jsonDictionary];
+                NSMutableURLRequest *request = [CrashOpsController prepareRequestWithBody: jsonDictionary forEndpoint: @"reports"];
 
                 if (!request) {
                     [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for file upload, file path: %@", reportPath]];
@@ -841,6 +919,7 @@ __strong static CrashOpsController *_shared;
                     [[CrashOpsController shared] uploadLogs];
                 }
             } else {
+                [[CrashOpsController shared] cleanAllTraces];
                 [CrashOpsController shared].isUploading = false;
             }
         };
@@ -879,10 +958,14 @@ __strong static CrashOpsController *_shared;
     return reportCopy;
 }
 
-+ (NSMutableURLRequest *) prepareRequestWithJson:(NSDictionary *) reportJson {
-    NSMutableDictionary *editedJson = [NSMutableDictionary dictionaryWithDictionary: reportJson];
++ (NSMutableURLRequest *) prepareRequestWithBody:(NSDictionary *) bodyDictionary forEndpoint: (NSString *) apiEndpoint {
+    NSData *postBody = [CrashOpsController toJsonData: bodyDictionary];
+    if (![postBody length]) {
+        return nil;
+    }
 
-    NSString *serverUrlString = @"https://crashops.com/api/reports";
+    NSString *serverUrlString = [NSString stringWithFormat: @"https://crashops.com/api/%@", apiEndpoint];
+    //NSString *serverUrlString = [NSString stringWithFormat: @"https://unity1.zcps.co/crashops/%@", apiEndpoint];
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL: [NSURL URLWithString: serverUrlString]];
 
@@ -895,12 +978,7 @@ __strong static CrashOpsController *_shared;
     NSString *contentType = [NSString stringWithFormat:@"application/json; charset=utf-8"];
     [request setValue: contentType forHTTPHeaderField:@"Content-Type"];
 
-    NSData *postBody = [CrashOpsController toJsonData: editedJson];
     [request setHTTPBody: postBody];
-
-    if (![postBody length]) {
-        return nil;
-    }
 
     return request;
 }
@@ -915,8 +993,10 @@ __strong static CrashOpsController *_shared;
         metadata = [NSDictionary new];
     }
 
-    handler.userInfo = @{@"hostAppInfo": metadata, @"deviceInfo": [CrashOpsController getDeviceInfo]};
-    
+    handler.userInfo = @{@"hostAppInfo": metadata,
+                         @"deviceInfo": [CrashOpsController getDeviceInfo],
+                         @"sessionId": self.appSessionId};
+
     if ([CrashOps shared].excludeClassesDetails) {
         // Do not introspect these classes
         handler.doNotIntrospectClasses = [[CrashOps shared].excludeClassesDetails copy];
@@ -932,38 +1012,15 @@ __strong static CrashOpsController *_shared;
     //   the `eventId` will be located under "report"->"id"
     NSLog(@"New event ID saved: %@", eventId);
 
-    if ([CrashOps shared].isTracingScreens) {
-        [self saveCurrentScreenTracesSnapshot: eventId];
-    }
-}
+    NSString *eventIdFile = [[self eventsFolderPath] stringByAppendingPathComponent: eventId];
 
-/**
-Creates a separated screen traces details file so CrashOps won't interrupt KZCrash logging operations.
-Later (on next app launch) CrashOps will merge these traces with the crash event that created here.
-*/
--(void) saveCurrentScreenTracesSnapshot:(NSString *) screenTracesSnapshotId {
-    if (!screenTracesSnapshotId) { return; }
-    if (![screenTracesSnapshotId length]) { return; }
-
-    // Logging screen traces for with 'screenTracesSnapshotId'
-    NSString *filePath = [[self tracesLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"screen_traces_%@.log", screenTracesSnapshotId]];
-
-    if (![filePath length]) { return; }
-
-    NSMutableArray *traces = [NSMutableArray new];
-    for (ScreenDetails *details in [[CrashOpsController shared] screenTracer].breadcrumbsReport) {
-        [traces addObject: [details toDictionary]];
-    }
-
-    NSData *screenTracesData = [CrashOpsController toJsonData: @{@"screenTraces": traces}];
-
-    NSError *error;
-    BOOL didSave = [screenTracesData writeToFile: filePath options: NSDataWritingAtomic error: &error];
-    if (!didSave || error) {
-        DebugLogArgs(@"Failed to save log with error %@", error);
-    } else {
-        DebugLog(@"Log saved.");
-    }
+    NSData *eventIdData = [appSessionId dataUsingEncoding: NSUTF8StringEncoding];
+    [eventIdData writeToFile: eventIdFile options: NSDataWritingAtomic error: nil];
+    
+    NSString *sessionIdFile = [[self sessionsFolderPath] stringByAppendingPathComponent: appSessionId];
+    
+    NSData *sessionIdData = [eventId dataUsingEncoding: NSUTF8StringEncoding];
+    [sessionIdData writeToFile: sessionIdFile options: NSDataWritingAtomic error: nil];
 }
 
 -(void) handleException:(NSException *) exception {
@@ -995,44 +1052,44 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
 - (BOOL) logError:(NSDictionary *) errorDetails {
     if (!errorDetails) return NO;
     if (![errorDetails count]) return NO;
-
+    
     NSDate *now = [NSDate date];
     NSTimeInterval timeMilliseconds = [now timeIntervalSince1970] * 1000;
     NSInteger timestamp = ((NSInteger) timeMilliseconds);
+    
+    NSString *sessionId = appSessionId;
+    [[self coGlobalOperationQueue] addOperationWithBlock:^{
+        NSString *nowString = [CrashOpsController stringFromDate: now withFormat: @"yyyy-MM-dd-HH-mm-ss-SSS_ZZZ"];
+        
+        NSString *filePath = [[self errorsFolderPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"ios_error_%@_%@.log", nowString, [[NSUUID UUID] UUIDString]]];
+        
+        NSArray *breadcrumbs = [ScreenTracer tracesReportForSessionId: sessionId];
+        
+        NSDictionary *jsonDictionary = @{@"errorDetails": errorDetails,
+                                         @"report":@{@"id": [NSNumber numberWithInteger: timestamp],
+                                                     @"time": nowString},
+                                         //@"details": [self generateReport: [NSException exceptionWithName:@"Error" reason:@"" userInfo:@{@"isFatal": NO}]],
+                                         @"details": [self generateReport: nil],
+                                         @"screenTraces": breadcrumbs,
+                                         @"isFatal": @NO
+        };
+        
+        NSData *errorData = [CrashOpsController toJsonData: jsonDictionary];
+        
+        NSError *error;
+        BOOL didSave = [errorData writeToFile: filePath options: NSDataWritingAtomic error: &error];
+        if (!didSave || error) {
+            DebugLogArgs(@"Failed to save log with error %@", error);
+        } else {
+            DebugLog(@"Log saved.");
+        }
+        
+        if (didSave) {
+            [self uploadLogs];
+        }
+    }];
 
-    NSString *nowString = [CrashOpsController stringFromDate: now withFormat: @"yyyy-MM-dd-HH-mm-ss-SSS_ZZZ"];
-
-    NSString *filePath = [[self errorsFolderPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"ios_error_%@_%@.log", nowString, [[NSUUID UUID] UUIDString]]];
-
-    NSMutableArray *screenTraces = [NSMutableArray new];
-    for (ScreenDetails *details in [[CrashOpsController shared] screenTracer].breadcrumbsReport) {
-        [screenTraces addObject:[details toDictionary]];
-    }
-
-    NSDictionary *jsonDictionary = @{@"errorDetails": errorDetails,
-                                     @"report":@{@"id": [NSNumber numberWithInteger: timestamp],
-                                                 @"time": nowString},
-                                     //@"details": [self generateReport: [NSException exceptionWithName:@"Error" reason:@"" userInfo:@{@"isFatal": NO}]],
-                                     @"details": [self generateReport: nil],
-                                     @"screenTraces": screenTraces,
-                                     @"isFatal": @NO
-    };
-
-    NSData *errorData = [CrashOpsController toJsonData: jsonDictionary];
-
-    NSError *error;
-    BOOL didSave = [errorData writeToFile: filePath options: NSDataWritingAtomic error: &error];
-    if (!didSave || error) {
-        DebugLogArgs(@"Failed to save log with error %@", error);
-    } else {
-        DebugLog(@"Log saved.");
-    }
-
-    if (didSave) {
-        [self uploadLogs];
-    }
-
-    return didSave;
+    return true;
 }
 
 -(NSString *) crashesFolderPath {
@@ -1056,7 +1113,7 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Create folder failed %@", path);
+            DebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1071,7 +1128,71 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     return errorsPath;
 }
 
--(NSString *) tracesLibraryPath {
+/**
+ *  Session IDs folder path.
+*/
+-(NSString *) sessionsFolderPath {
+    if (sessionsPath != nil) {
+        return sessionsPath;
+    }
+
+    NSString *path = [self.crashOpsLibraryPath stringByAppendingPathComponent: @"Sessions"];
+
+    BOOL isDir = YES;
+    BOOL isCreated = NO;
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
+        if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
+            DebugLogArgs(@"Error: Failed to create folder %@", path);
+        } else {
+            isCreated = YES;
+        }
+    } else {
+        isCreated = YES;
+    }
+
+    if (isCreated) {
+        sessionsPath = path;
+    }
+
+    return sessionsPath;
+}
+/**
+ *  Event IDs folder path.
+*/
+-(NSString *) eventsFolderPath {
+    if (eventsPath != nil) {
+        return eventsPath;
+    }
+
+    NSString *path = [self.crashOpsLibraryPath stringByAppendingPathComponent: @"Events"];
+
+    BOOL isDir = YES;
+    BOOL isCreated = NO;
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
+        if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
+            DebugLogArgs(@"Error: Failed to create folder %@", path);
+        } else {
+            isCreated = YES;
+        }
+    } else {
+        isCreated = YES;
+    }
+
+    if (isCreated) {
+        eventsPath = path;
+    }
+
+    return eventsPath;
+}
+
+/**
+*  All screen trace logs folder path.
+*/
+-(NSString *) tracesFolderPath {
     if (tracesPath != nil) {
         return tracesPath;
     }
@@ -1084,7 +1205,7 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Create folder failed %@", path);
+            DebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1097,6 +1218,37 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     }
 
     return tracesPath;
+}
+
+/**
+*  Current session's screen trace logs folder path.
+*/
+-(NSString *) currentSessionTracesFolderPath {
+//    if (currentTracesPath != nil) {
+//        return currentTracesPath;
+//    }
+
+    NSString *path = [[self tracesFolderPath] stringByAppendingPathComponent: appSessionId];
+
+    BOOL isDir = YES;
+    BOOL isCreated = NO;
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
+        if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
+            DebugLogArgs(@"Error: Failed to create folder %@", path);
+        } else {
+            isCreated = YES;
+        }
+    } else {
+        isCreated = YES;
+    }
+
+    if (isCreated) {
+        currentTracesPath = path;
+    }
+
+    return currentTracesPath;
 }
 
 -(NSString *) crashOpsLibraryPath {
@@ -1112,7 +1264,7 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Create folder failed %@", path);
+            DebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1132,6 +1284,7 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
 
     NSThread *current = [NSThread currentThread];
     [jsonReport co_setOptionalObject: [current description] forKey: @"currentThread"];
+    [jsonReport co_setOptionalObject: self.appSessionId forKey: @"sessionId"];
 
     NSMutableArray *stackTrace;
 
@@ -1171,7 +1324,7 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Create folder failed %@", path);
+            DebugLogArgs(@"Error: Failed to create folder %@", path);
         }
     }
 
@@ -1182,6 +1335,125 @@ Later (on next app launch) CrashOps will merge these traces with the crash event
 
 static void ourExceptionHandler(NSException *exception) {
     [[CrashOpsController shared] handleException: exception];
+}
+
+- (void) flushToDisk:(ScreenDetails *) screenDetails {
+    [[self coGlobalOperationQueue] addOperationWithBlock:^{
+        NSUInteger timestamp = screenDetails.timestamp;
+        NSString *filePath = [[[CrashOpsController shared] currentSessionTracesFolderPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"%lu.log", (unsigned long) timestamp]];
+
+        NSData *traceData = [[CrashOpsController toJsonString: [screenDetails toDictionary]] dataUsingEncoding: NSUTF8StringEncoding];
+
+        BOOL didSave = [traceData writeToFile: filePath options: NSDataWritingAtomic error: nil];
+        if (!didSave) {
+            [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to flush screen details to disk. Screen details: %@", screenDetails]];
+        }
+    }];
+}
+
+-(BOOL) cleanUpEventId:(NSString *) eventId andReportPath:(NSURL *) reportPath {
+    NSString *screenTracesFolderPath = [CrashOpsController screenTracesFolderFromEventId: eventId];
+
+    NSError *error;
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    BOOL didRemove = [fileManager removeItemAtURL: reportPath error: &error];
+    if (!didRemove || error) {
+        [[CrashOpsController shared] reportInternalError: [NSString stringWithFormat:@"Failed to delete report file, error: %@", error]];
+    }
+
+    if (screenTracesFolderPath) {
+        didRemove &= [fileManager removeItemAtPath: screenTracesFolderPath error: &error];
+    }
+    
+    NSString *sessionId = [CrashOpsController sessionIdFromEventId: eventId];
+    NSString *sessionIdPath = [[[CrashOpsController shared] sessionsFolderPath] stringByAppendingPathComponent: sessionId];
+
+    NSString *eventIdPath = [[[CrashOpsController shared] eventsFolderPath] stringByAppendingPathComponent: eventId];
+    didRemove &= [fileManager removeItemAtPath: eventIdPath error: &error];
+    didRemove &= [fileManager removeItemAtPath: sessionIdPath error: &error];
+
+    if (!didRemove || error) {
+        [[CrashOpsController shared] reportInternalError: [NSString stringWithFormat:@"Failed to delete screen traces file file, error: %@", error]];
+    }
+
+    return didRemove;
+}
+
+-(BOOL) cleanAllTraces {
+    NSString *screenTracesFolderPath = [[CrashOpsController shared] tracesFolderPath];
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    NSError *error;
+    BOOL didRemoveAll = YES;
+    if ([[NSFileManager defaultManager] fileExistsAtPath: screenTracesFolderPath]) {
+        NSArray *filesList = [fileManager contentsOfDirectoryAtURL:[NSURL URLWithString: screenTracesFolderPath] includingPropertiesForKeys: nil options: NSDirectoryEnumerationSkipsHiddenFiles error: nil];
+        for (NSURL *fileUrl in filesList) {
+            // guard
+            if ([[fileUrl lastPathComponent] isEqualToString: appSessionId]) { continue; }
+
+            [fileManager removeItemAtURL: fileUrl error: &error];
+            didRemoveAll &= error == nil;
+        }
+    }
+
+    if (!didRemoveAll || error) {
+        [[CrashOpsController shared] reportInternalError: [NSString stringWithFormat:@"Failed to delete report file, error: %@", error]];
+    }
+    
+    return didRemoveAll;
+}
+
++(NSString *) screenTracesFolderFromEventId:(NSString *) eventId {
+    NSString *sessionId = [CrashOpsController sessionIdFromEventId: eventId];
+
+    return [CrashOpsController screenTracesFolderFromSessionId: sessionId];
+}
+
++(NSString *) screenTracesFolderFromSessionId:(NSString *) sessionId {
+    NSString *sessionTracesFolderPath;
+
+    if (sessionId) {
+        NSString *tracesFolderPath = [[CrashOpsController shared] tracesFolderPath];
+        sessionTracesFolderPath = [tracesFolderPath stringByAppendingPathComponent: sessionId];
+        
+        if (![[NSFileManager defaultManager] fileExistsAtPath: sessionTracesFolderPath]) {
+            sessionTracesFolderPath = nil;
+        }
+    }
+
+    return sessionTracesFolderPath;
+}
+
++(NSString *) sessionIdFromEventId:(NSString *) eventId {
+    NSString *sessionIdFilePath = [[[CrashOpsController shared] eventsFolderPath] stringByAppendingPathComponent: eventId];
+
+    NSString *sessionId;
+    if ([[NSFileManager defaultManager] fileExistsAtPath: sessionIdFilePath]) {
+        NSData *sessionIdData = [NSData dataWithContentsOfFile: sessionIdFilePath];
+
+        if (sessionIdData) {
+            sessionId = [[NSString alloc] initWithData: sessionIdData encoding:NSUTF8StringEncoding];
+            DebugLogArgs(@"eventId -> sessionId: %@", sessionId);
+        }
+    }
+
+    return sessionId;
+}
+
++(NSString *) eventIdFromSessionId:(NSString *) sessionId {
+    NSString *eventIdFile = [[[CrashOpsController shared] eventsFolderPath] stringByAppendingPathComponent: sessionId];
+
+    NSString *eventId;
+    if ([[NSFileManager defaultManager] fileExistsAtPath: eventIdFile]) {
+            NSData *eventIdData = [NSData dataWithContentsOfFile: eventIdFile];
+
+        if (eventIdData) {
+            eventId = [[NSString alloc] initWithData: eventIdData encoding:NSUTF8StringEncoding];
+            DebugLogArgs(@"sessionId -> eventId: %@", eventId);
+        }
+    }
+
+    return eventId;
 }
 
 +(NSString *) toJsonString:(NSDictionary *) jsonDictionary {
@@ -1199,7 +1471,7 @@ static void ourExceptionHandler(NSException *exception) {
 }
 
 +(NSData *) toJsonData:(NSDictionary *) jsonDictionary {
-    if (![jsonDictionary count]) {
+    if (![jsonDictionary isKindOfClass: [NSDictionary class]] || ![jsonDictionary count]) {
         // Avoiding 'NSInvalidArgumentException'
         return nil;
     }
@@ -1274,10 +1546,6 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
     struct utsname un;
     uname(&un);
 
-    // Discussion: These two strings are different...
-//    DebugLog([CrashOpsController advertisingIdentifierString]);
-//    DebugLog([[device identifierForVendor] UUIDString]);
-
     CGRect screenSize = [[UIScreen mainScreen] bounds];
     
     NSMutableDictionary *info = [@{
@@ -1298,13 +1566,22 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
     } mutableCopy];
 
     // Setting nullable values
-    [info co_setOptionalObject: [[device identifierForVendor] UUIDString] forKey: @"identifierForVendor"];
+    [info co_setOptionalObject: [CrashOpsController deviceId] forKey: @"identifierForVendor"];
 
     return [info copy];
 }
 
-+ (NSString *) advertisingIdentifierString {
-    return [[[ASIdentifierManager sharedManager] advertisingIdentifier] UUIDString];
+// Get the system version from Firebase Core's App Environment Util
++ (NSString *) iosVersion {
+#if TARGET_OS_IOS || TARGET_OS_TV
+  return [UIDevice currentDevice].systemVersion;
+#elif TARGET_OS_OSX || TARGET_OS_WATCH
+  return [NSProcessInfo processInfo].operatingSystemVersionString;
+#endif
+}
+
++ (NSString *) deviceId {
+    return [[[UIDevice currentDevice] identifierForVendor] UUIDString];
 }
 
 + (NSData*) gzippedWithCompressionLevel:(NSData*) original {

@@ -10,8 +10,8 @@
 
 @protocol ViewControllerTracer <NSObject>
 
-/// A list of `ScreenDetails` objects
--(NSArray *) breadcrumbsReport;
+/// Loads a list of `ScreenDetails` objects from disk, according to session ID.
++(NSArray *) tracesReportForSessionId:(NSString *) sessionId;
 
 @end
 
@@ -19,5 +19,6 @@
 @interface ScreenTracer: NSObject<ViewControllerTracer>
 
 - (void) addViewController: (UIViewController *) viewController;
++(NSArray *) tracesReportForSessionId:(NSString *) sessionId;
 
 @end

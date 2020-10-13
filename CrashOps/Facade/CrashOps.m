@@ -34,6 +34,10 @@ static NSString * const lock = @"co_locker";
 @synthesize isTracingScreens;
 
 - (instancetype)init {
+    return [CrashOps shared];
+}
+
+- (instancetype)initWithCoder:(NSCoder *)coder {
     self = [super init];
 
     if (self) {
@@ -59,6 +63,12 @@ static NSString * const lock = @"co_locker";
     [[KSCrash sharedInstance] deleteAllReports];
 }
 
+- (void)setMetadata:(NSMutableDictionary *)metadata {
+    if ([metadata isKindOfClass: [NSDictionary class]]) {
+        self.metadata = metadata;
+    }
+}
+
 - (void)throwException {
     [NSException raise:@"CrashOps test exception" format: @""];
 }
@@ -76,7 +86,7 @@ static NSString * const lock = @"co_locker";
 }
 
 + (NSString *)sdkVersion {
-    return @"0.2.17";
+    return @"0.3.04";
 }
 
 - (void) crash {
@@ -91,7 +101,7 @@ __strong static CrashOps *_sharedInstance;
 + (CrashOps *)sharedInstance {
     static dispatch_once_t onceToken;
     dispatch_once(&onceToken, ^{
-        _sharedInstance = [[CrashOps alloc] init];
+        _sharedInstance = [[CrashOps alloc] initWithCoder: nil];
     });
     
     return _sharedInstance;
@@ -143,7 +153,7 @@ __strong static CrashOps *_sharedInstance;
 @end
 
 //! Project version number for CrashOps.
-//double CrashOpsVersionNumber = 0.00823;
+//double CrashOpsVersionNumber = 0.0304;
 
 //! Project version string for CrashOps.
-//const unsigned char CrashOpsVersionString[] = "0.0.823";
+//const unsigned char CrashOpsVersionString[] = "0.3.04";

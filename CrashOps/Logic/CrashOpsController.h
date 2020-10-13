@@ -14,6 +14,8 @@
 
 #import <Foundation/Foundation.h>
 #import "ScreenTracer.h"
+#import "ScreenDetails.h"
+
 /**
  A private class that is responsible on our core actions.
  */
@@ -56,7 +58,14 @@
 
 +(NSString *) toJsonString:(NSDictionary *) jsonDictionary;
 
+-(void) flushToDisk:(ScreenDetails *) screenDetails;
+
++(NSString *) screenTracesFolderFromSessionId:(NSString *) sessionId;
+
++ (void) logInternalError:(NSString *) sdkError;
+
 @end
+
 
 @interface NSMutableDictionary<KeyType, ObjectType> (CO_NilSafeDictionary)
 
