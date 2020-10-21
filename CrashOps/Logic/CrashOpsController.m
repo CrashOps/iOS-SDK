@@ -311,9 +311,9 @@ __strong static CrashOpsController *_shared;
 
 -(void) sendPresence {
     if (!isEnabled) return;
-    if (![CrashOpsController shared].appKey) return;
-    if (didSendPresence) return;
+    if (![[CrashOpsController shared].appKey length]) return;
 
+    if (didSendPresence) return;
     didSendPresence = YES;
 
     NSUInteger timestamp = (NSUInteger)_timestamp_milliseconds();
