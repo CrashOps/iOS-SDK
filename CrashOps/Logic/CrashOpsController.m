@@ -61,8 +61,8 @@ typedef void(^LogsUploadCompletion)(NSArray *reports);
 
 @end
 
-#define DebugLog(msg) if (CrashOpsController.isDebugModeEnabled) { NSLog(@"[CrashOps] %@", msg); }
-#define DebugLogArgs(msg, args) if (CrashOpsController.isDebugModeEnabled) { NSLog(@"[CrashOps] %@", [NSString stringWithFormat: msg, args]); }
+#define CODebugLog(msg) if (CrashOpsController.isDebugModeEnabled) { NSLog(@"[CrashOps] %@", msg); }
+#define CODebugLogArgs(msg, args) if (CrashOpsController.isDebugModeEnabled) { NSLog(@"[CrashOps] %@", [NSString stringWithFormat: msg, args]); }
 
 #define COAssertToast(condition, message) COAssert(condition, message, YES)
 
@@ -117,11 +117,11 @@ __strong static CrashOpsController *_shared;
     return _shared;
 }
 
-- (instancetype)init {
+- (instancetype) init {
     return [CrashOpsController shared];
 }
 
-- (instancetype)initWithCoder:(NSCoder *)coder {
+- (instancetype)initWithCoder:(NSCoder *) coder {
     if (self = [super init]) {
         coGlobalOperationQueue = [[NSOperationQueue alloc] init];
         coGlobalOperationQueue.name = kSdkIdentifier;
@@ -273,7 +273,7 @@ __strong static CrashOpsController *_shared;
 }
 
 + (void) logInternalError:(NSString *) sdkError {
-    DebugLogArgs(@"%@", sdkError);
+    CODebugLogArgs(@"%@", sdkError);
     //[co_ToastMessage show: sdkError delayInSeconds: 2 onDone: nil];
     [[CrashOpsController shared] reportInternalError: sdkError];
 }
@@ -306,7 +306,7 @@ __strong static CrashOpsController *_shared;
         });
     }];
 
-    //DebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
+    //CODebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
 }
 
 -(void) sendPresence {
@@ -329,14 +329,34 @@ __strong static CrashOpsController *_shared;
              forKey: key];
 
             if (!didAdd) {
-                DebugLog(@"Hmmmm...");
+                CODebugLog(@"Hmmmm...");
             }
         }
+    }
+
+    NSDictionary *appInfoDictionary = [[NSBundle mainBundle] infoDictionary];
+    CODebugLog([appInfoDictionary description]);
+
+    NSString *appBuildNumberString;
+    if (appInfoDictionary[@"CFBundleVersion"]) {
+        NSInteger appBuildNumber = [appInfoDictionary[@"CFBundleVersion"] intValue];
+        appBuildNumberString = [NSString stringWithFormat:@"%ld", (long) appBuildNumber];
+    } else {
+        appBuildNumberString = @"unknown";
+    }
+    
+    NSString *appVersionString;
+    if (appInfoDictionary[@"CFBundleShortVersionString"]) {
+        appVersionString = [appInfoDictionary[@"CFBundleShortVersionString"] description];
+    } else {
+        appVersionString = @"unknown";
     }
 
     NSDictionary *sessionDetails = @{@"sessionId": appSessionId,
                                      @"timestamp": [NSString stringWithFormat:@"%lu", (unsigned long) timestamp],
                                      @"sdkVersion": [CrashOps sdkVersion],
+                                     @"appBuildNumber": appBuildNumberString,
+                                     @"appVersion": appVersionString,
                                      @"deviceId": [CrashOpsController deviceId],
                                      @"devicePlatform": @"ios",
                                      @"deviceInfo": deviceInfo,
@@ -355,7 +375,7 @@ __strong static CrashOpsController *_shared;
 
     NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
         NSString *responseString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
-        DebugLogArgs(@"%@", responseString);
+        CODebugLogArgs(@"%@", responseString);
 
         BOOL wasRequestSuccessful = false;
         NSInteger responseStatusCode = 100;
@@ -367,16 +387,16 @@ __strong static CrashOpsController *_shared;
         [[self coGlobalOperationQueue] addOperationWithBlock:^{
             if (wasRequestSuccessful) {
                 if (responseStatusCode == 202) {
-                    DebugLogArgs(@"Accepted session details and saved. Details: %@", sessionDetails);
+                    CODebugLogArgs(@"Accepted session details and saved. Details: %@", sessionDetails);
                 }
             } else {
                 if (responseStatusCode >= 400 && responseStatusCode < 500) {
                     // Integratoin error occured - deleting log anyway to avoid a large "history" folder size.
                     
                     if (responseStatusCode == 409) {
-                        DebugLogArgs(@"This session already sent in the past, details: %@", sessionDetails);
+                        CODebugLogArgs(@"This session already sent in the past, details: %@", sessionDetails);
                     } else {
-                        DebugLogArgs(@"Some client error occurred for details: %@", sessionDetails);
+                        CODebugLogArgs(@"Some client error occurred for details: %@", sessionDetails);
                     }
                 }
                 
@@ -463,7 +483,7 @@ __strong static CrashOpsController *_shared;
 //            NSInteger stam = @[@1,@2,@3,@4][8];
 //        } @catch (NSException *exception) {
 //            didCatch = YES;
-//            DebugLog([exception.name description]);
+//            CODebugLog([exception.name description]);
 //        } @finally {
 //            // ignore
 //        }
@@ -616,7 +636,7 @@ __strong static CrashOpsController *_shared;
 
                 NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
                     NSString *responseString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
-                    DebugLogArgs(@"%@", responseString);
+                    CODebugLogArgs(@"%@", responseString);
 
                     BOOL wasRequestSuccessful = false;
                     NSInteger responseStatusCode = 100;
@@ -628,7 +648,7 @@ __strong static CrashOpsController *_shared;
                     [[self coGlobalOperationQueue] addOperationWithBlock:^{
                         if (wasRequestSuccessful) {
                             if (responseStatusCode == 202) {
-                                DebugLogArgs(@"Accepted log and saved, file: %@", reportPath);
+                                CODebugLogArgs(@"Accepted log and saved, file: %@", reportPath);
                                 [sentReports addObject: reportPath];
                             }
                         } else {
@@ -637,9 +657,9 @@ __strong static CrashOpsController *_shared;
                                 [sentReports addObject: reportPath];
                                 
                                 if (responseStatusCode == 409) {
-                                    DebugLogArgs(@"This log that already sent in the past, file: %@", reportPath);
+                                    CODebugLogArgs(@"This log that already sent in the past, file: %@", reportPath);
                                 } else {
-                                    DebugLogArgs(@"Some client error occurred for file: %@", reportPath);
+                                    CODebugLogArgs(@"Some client error occurred for file: %@", reportPath);
                                 }
                             }
                             
@@ -702,7 +722,7 @@ __strong static CrashOpsController *_shared;
         NSMutableDictionary *allReports = [NSMutableDictionary new];
 
         for (NSURL *logFileUrlPath in filesList) {
-            DebugLogArgs(@"%@", logFileUrlPath);
+            CODebugLogArgs(@"%@", logFileUrlPath);
 
             NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
             NSDictionary *jsonDictionary = [CrashOpsController toJsonDictionary: logFileJson];
@@ -743,7 +763,7 @@ __strong static CrashOpsController *_shared;
             } else if ([reportPaths count] > 0) {
                 // Considering to wait for the first VC to appear (https://spin.atomicobject.com/2014/12/30/method-swizzling-objective-c/).
 
-                DebugLog(@"Waiting to the host app's handler to be set...");
+                CODebugLog(@"Waiting to the host app's handler to be set...");
 //                        dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(3 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
 //                            [[CrashOpsController shared] uploadLogs]; // Bad solution, we won't use this solution for example...
 //                        });
@@ -782,7 +802,7 @@ __strong static CrashOpsController *_shared;
 
                 NSURLSessionDataTask *task = [[NSURLSession sharedSession] dataTaskWithRequest: request completionHandler:^(NSData * _Nullable returnedData, NSURLResponse * _Nullable response, NSError * _Nullable error) {
                     NSString *responseString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
-                    DebugLogArgs(@"%@", responseString);
+                    CODebugLogArgs(@"%@", responseString);
 
                     BOOL wasRequestSuccessful = false;
                     NSInteger responseStatusCode = 100;
@@ -794,7 +814,7 @@ __strong static CrashOpsController *_shared;
                     [[self coGlobalOperationQueue] addOperationWithBlock:^{
                         if (wasRequestSuccessful) {
                             if (responseStatusCode == 202) {
-                                DebugLogArgs(@"Accepted log and saved, file: %@", reportPath);
+                                CODebugLogArgs(@"Accepted log and saved, file: %@", reportPath);
                                 [sentReports addObject: reportPath];
                             }
                         } else {
@@ -803,9 +823,9 @@ __strong static CrashOpsController *_shared;
                                 [sentReports addObject: reportPath];
                                 
                                 if (responseStatusCode == 409) {
-                                    DebugLogArgs(@"This log that already sent in the past, file: %@", reportPath);
+                                    CODebugLogArgs(@"This log that already sent in the past, file: %@", reportPath);
                                 } else {
-                                    DebugLogArgs(@"Some client error occurred for file: %@", reportPath);
+                                    CODebugLogArgs(@"Some client error occurred for file: %@", reportPath);
                                 }
                             }
                             
@@ -844,7 +864,7 @@ __strong static CrashOpsController *_shared;
     NSMutableDictionary *allReports = [NSMutableDictionary new];
 
     for (NSURL *logFileUrlPath in fileUrlsList) {
-        DebugLogArgs(@"%@", logFileUrlPath);
+        CODebugLogArgs(@"%@", logFileUrlPath);
 
         NSString *logFileJson = [[NSString alloc] initWithData: [NSData dataWithContentsOfURL: logFileUrlPath] encoding: NSUTF8StringEncoding];
         
@@ -1081,9 +1101,9 @@ __strong static CrashOpsController *_shared;
         NSError *error;
         BOOL didSave = [errorData writeToFile: filePath options: NSDataWritingAtomic error: &error];
         if (!didSave || error) {
-            DebugLogArgs(@"Failed to save log with error %@", error);
+            CODebugLogArgs(@"Failed to save log with error %@", error);
         } else {
-            DebugLog(@"Log saved.");
+            CODebugLog(@"Log saved.");
         }
         
         if (didSave) {
@@ -1115,7 +1135,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Failed to create folder %@", path);
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1146,7 +1166,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Failed to create folder %@", path);
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1176,7 +1196,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Failed to create folder %@", path);
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1207,7 +1227,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Failed to create folder %@", path);
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1238,7 +1258,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Failed to create folder %@", path);
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1266,7 +1286,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Failed to create folder %@", path);
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
         } else {
             isCreated = YES;
         }
@@ -1326,7 +1346,7 @@ __strong static CrashOpsController *_shared;
     NSFileManager *fileManager = [NSFileManager defaultManager];
     if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
         if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
-            DebugLogArgs(@"Error: Failed to create folder %@", path);
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
         }
     }
 
@@ -1435,7 +1455,7 @@ static void ourExceptionHandler(NSException *exception) {
 
         if (sessionIdData) {
             sessionId = [[NSString alloc] initWithData: sessionIdData encoding:NSUTF8StringEncoding];
-            DebugLogArgs(@"eventId -> sessionId: %@", sessionId);
+            CODebugLogArgs(@"eventId -> sessionId: %@", sessionId);
         }
     }
 
@@ -1451,7 +1471,7 @@ static void ourExceptionHandler(NSException *exception) {
 
         if (eventIdData) {
             eventId = [[NSString alloc] initWithData: eventIdData encoding:NSUTF8StringEncoding];
-            DebugLogArgs(@"sessionId -> eventId: %@", eventId);
+            CODebugLogArgs(@"sessionId -> eventId: %@", eventId);
         }
     }
 
@@ -1467,7 +1487,7 @@ static void ourExceptionHandler(NSException *exception) {
     }
 
     NSString* jsonString = [[NSString alloc] initWithData: jsonData encoding: NSUTF8StringEncoding];
-    DebugLogArgs(@"jsonString: %@", jsonString);
+    CODebugLogArgs(@"jsonString: %@", jsonString);
     
     return error ? nil : jsonString;
 }
@@ -1533,14 +1553,14 @@ static void ourExceptionHandler(NSException *exception) {
 NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
 
 +(void) initialize {
-    DebugLog(@"App is loading...");
+    CODebugLog(@"App is loading...");
     g_dateFormatter = [[NSDateFormatter alloc] init];
     [g_dateFormatter setLocale:[NSLocale localeWithLocaleIdentifier:@"en_US_POSIX"]];
 }
 
 + (void) load {
     [[CrashOpsController shared] onAppIsLoading];
-    DebugLog(@"CrashOps library is being loaded");
+    CODebugLog(@"CrashOps library is being loaded");
 }
 
 + (NSDictionary *) getDeviceInfo {
