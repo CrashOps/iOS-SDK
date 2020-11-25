@@ -989,7 +989,6 @@ __strong static CrashOpsController *_shared;
     }
 
     NSString *serverUrlString = [NSString stringWithFormat: @"https://crashops.com/api/%@", apiEndpoint];
-    //NSString *serverUrlString = [NSString stringWithFormat: @"https://unity1.zcps.co/crashops/%@", apiEndpoint];
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL: [NSURL URLWithString: serverUrlString]];
 
