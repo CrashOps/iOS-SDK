@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.3.06"
+  s.version      = "0.3.11"
   s.summary      = "CrashOps monitors your app's stability and vulnerability."
 
   # This description is used to generate tags and improve search results.
@@ -24,7 +24,7 @@ Pod::Spec.new do |s|
   #   * Try to keep it short, snappy and to the point.
   #   * Write the description between the DESC delimiters below.
   #   * Finally, don't worry about the indent, CocoaPods strips it!
-  s.description  = "CrashOps lets you monitor your app's stability and vulnerability by giving you error and crash reports with the supporting platform by CrashOps servers."
+  s.description  = "CrashOps lets you monitor your app's stability and vulnerability by giving you error and crash reports, supported by CrashOps servers."
 
   s.homepage     = "https://github.com/CrashOps/iOS-SDK"
   # s.screenshots  = "www.example.com/screenshots_1.gif", "www.example.com/screenshots_2.gif"
@@ -117,12 +117,8 @@ s.dependency 'KZCrash', '1.15.25'
   #  the lib prefix of their name.
   #
 
-  # s.framework  = "SomeFramework"
-  # s.frameworks = "SomeFramework", "AnotherFramework"
-
-  # s.library   = "iconv"
-  # s.libraries = "iconv", "xml2"
-
+   s.libraries  = 'z', 'iconv'
+   s.framework  = 'Security'
 
   # ――― Project Settings ――――――――――――――――――――――――――――――――――――――――――――――――――――――――― #
   #
@@ -131,8 +127,10 @@ s.dependency 'KZCrash', '1.15.25'
   #  you can include multiple dependencies to ensure it works.
 
   # s.requires_arc = true
+  s.pod_target_xcconfig = { 'DEFINES_MODULE' => 'YES',
+    'GCC_PREPROCESSOR_DEFINITIONS' => 'HAVE_INTTYPES_H HAVE_PKCRYPT HAVE_STDINT_H HAVE_WZAES HAVE_ZLIB' }
 
-  # s.xcconfig = { "HEADER_SEARCH_PATHS" => "$(SDKROOT)/usr/include/libxml2" }
-  # s.dependency "JSONKit", "~> 1.4"
+
+  # 's.pod_target_xcconfig' should be better than 's.xcconfig', more details at: https://github.com/Tencent/MMKV/issues/226,
 
 end
