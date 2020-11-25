@@ -10,6 +10,8 @@
 #import "CrashOpsController.h"
 #import "DebugToastMessage.h"
 
+#import "SSZipArchive.h"
+
 #import "AppleCrashReportGenerator.h"
 
 #import "KSCrashMonitor_NSException.h"
@@ -991,10 +993,10 @@ __strong static CrashOpsController *_shared;
 
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL: [NSURL URLWithString: serverUrlString]];
 
-    [request setCachePolicy:NSURLRequestReloadIgnoringLocalCacheData];
-    [request setHTTPShouldHandleCookies:NO];
-    [request setTimeoutInterval:60];
-    [request setHTTPMethod:@"POST"];
+    [request setCachePolicy: NSURLRequestReloadIgnoringLocalCacheData];
+    [request setHTTPShouldHandleCookies: NO];
+    [request setTimeoutInterval: 60];
+    [request setHTTPMethod: @"POST"];
     [request setValue: @"gzip" forHTTPHeaderField: @"Accept-Encoding"];
 
     NSString *contentType = [NSString stringWithFormat:@"application/json; charset=utf-8"];
@@ -1325,8 +1327,6 @@ __strong static CrashOpsController *_shared;
 
     [jsonReport co_setOptionalObject: CrashOps.shared.metadata forKey: @"metadata"];
     
-//    [jsonReport setObject: [NSBundle allFrameworks] forKey: @"allFrameworks"];
-
     return jsonReport;
 }
 
