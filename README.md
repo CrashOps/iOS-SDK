@@ -1,7 +1,7 @@
 # CrashOps iOS SDK
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT) [![](https://img.shields.io/cocoapods/p/CrashOps.svg?style=flat)](https://cocoapods.org/pods/CrashOps)
 
-This library will help you monitor your iOS app's crashes.
+CrashOps lets you monitor your app's stability and vulnerability by giving you error and crash reports, supported by CrashOps servers.
 
 
 ## Installation
@@ -12,7 +12,7 @@ This library will help you monitor your iOS app's crashes.
 You want to add `pod 'CrashOps'` similar to the following to your Podfile:
 ```
 target 'MyApp' do
-  pod 'CrashOps', '0.3.06'
+  pod 'CrashOps', '0.3.11'
 end
 ```
 Then run a `pod install` in your terminal, or from CocoaPods app.
