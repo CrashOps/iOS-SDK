@@ -1011,6 +1011,10 @@ static NSDictionary* g_registerOrders;
 
     NSString *filePath = [[CrashOpsController ipsFilesLibraryPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"%@.ips", fileName]];
 
+    if (!filePath) {
+        return filePath;
+    }
+
     if ([[NSFileManager defaultManager] fileExistsAtPath: filePath]) {
         return filePath;
     }

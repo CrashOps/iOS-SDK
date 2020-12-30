@@ -976,6 +976,31 @@ __strong static CrashOpsController *_shared;
 
     NSMutableDictionary *reportCopy = [reportJson mutableCopy];
     reportCopy[@"devicePlatform"] = @"ios";
+    NSMutableDictionary *system = [reportCopy[@"system"] mutableCopy];
+    if (!system) {
+        system = [NSMutableDictionary new];
+    }
+
+    NSDictionary *appInfoDictionary = [[NSBundle mainBundle] infoDictionary];
+    CODebugLog([appInfoDictionary description]);
+
+    NSString *appBuildNumberString;
+    if (appInfoDictionary[@"CFBundleVersion"]) {
+        NSInteger appBuildNumber = [appInfoDictionary[@"CFBundleVersion"] intValue];
+        appBuildNumberString = [NSString stringWithFormat:@"%ld", (long) appBuildNumber];
+    }
+    
+    NSString *appVersionString;
+    if (appInfoDictionary[@"CFBundleShortVersionString"]) {
+        appVersionString = [appInfoDictionary[@"CFBundleShortVersionString"] description];
+    }
+
+    [system co_setOptionalObject: NSBundle.mainBundle.bundleIdentifier forKey:@"CFBundleIdentifier"];
+    [system co_setOptionalObject: appVersionString forKey:@"CFBundleShortVersionString"];
+    [system co_setOptionalObject: appBuildNumberString forKey:@"CFBundleVersion"];
+
+    reportCopy[@"system"] = system;
+
     reportCopy[@"crashOpsSdkVersion"] = [CrashOps sdkVersion]; //[NSString stringWithCString:CrashOpsVersionString encoding: NSUTF8StringEncoding];
     reportCopy[@"buildMode"] = [CrashOps isRunningOnDebugMode] ? @"DEBUG" : @"RELEASE";
 
@@ -1036,14 +1061,20 @@ __strong static CrashOpsController *_shared;
     NSLog(@"New event ID saved: %@", eventId);
 
     NSString *eventIdFile = [[self eventsFolderPath] stringByAppendingPathComponent: eventId];
+    if (eventIdFile) {
+        NSData *eventIdData = [appSessionId dataUsingEncoding: NSUTF8StringEncoding];
+        [eventIdData writeToFile: eventIdFile options: NSDataWritingAtomic error: nil];
+    } else {
+        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to save session ID: %@", appSessionId]];
+    }
 
-    NSData *eventIdData = [appSessionId dataUsingEncoding: NSUTF8StringEncoding];
-    [eventIdData writeToFile: eventIdFile options: NSDataWritingAtomic error: nil];
-    
     NSString *sessionIdFile = [[self sessionsFolderPath] stringByAppendingPathComponent: appSessionId];
-    
-    NSData *sessionIdData = [eventId dataUsingEncoding: NSUTF8StringEncoding];
-    [sessionIdData writeToFile: sessionIdFile options: NSDataWritingAtomic error: nil];
+    if (sessionIdFile) {
+        NSData *sessionIdData = [eventId dataUsingEncoding: NSUTF8StringEncoding];
+        [sessionIdData writeToFile: sessionIdFile options: NSDataWritingAtomic error: nil];
+    } else {
+        [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to save event ID: %@", eventId]];
+    }
 }
 
 -(void) handleException:(NSException *) exception {
@@ -1085,19 +1116,26 @@ __strong static CrashOpsController *_shared;
         NSString *nowString = [CrashOpsController stringFromDate: now withFormat: @"yyyy-MM-dd-HH-mm-ss-SSS_ZZZ"];
         
         NSString *filePath = [[self errorsFolderPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"ios_error_%@_%@.log", nowString, [[NSUUID UUID] UUIDString]]];
-        
+        if (!filePath) {
+            return;
+        }
+
         NSArray *breadcrumbs = [ScreenTracer tracesReportForSessionId: sessionId];
         
         NSDictionary *jsonDictionary = @{@"errorDetails": errorDetails,
-                                         @"report":@{@"id": [NSNumber numberWithInteger: timestamp],
-                                                     @"time": nowString},
+                                         @"report":@{@"id": [[NSUUID UUID] UUIDString],
+                                                     @"timestamp": [NSNumber numberWithInteger: timestamp],
+                                                     @"time": nowString
+                                         },
                                          //@"details": [self generateReport: [NSException exceptionWithName:@"Error" reason:@"" userInfo:@{@"isFatal": NO}]],
                                          @"details": [self generateReport: nil],
                                          @"screenTraces": breadcrumbs,
                                          @"isFatal": @NO
         };
+
+        NSMutableDictionary *crashOpsDictionary = [CrashOpsController addCrashOpsConstantFields: jsonDictionary];
         
-        NSData *errorData = [CrashOpsController toJsonData: jsonDictionary];
+        NSData *errorData = [CrashOpsController toJsonData: crashOpsDictionary];
         
         NSError *error;
         BOOL didSave = [errorData writeToFile: filePath options: NSDataWritingAtomic error: &error];
@@ -1362,10 +1400,14 @@ static void ourExceptionHandler(NSException *exception) {
     [[self coGlobalOperationQueue] addOperationWithBlock:^{
         NSUInteger timestamp = screenDetails.timestamp;
         NSString *filePath = [[[CrashOpsController shared] currentSessionTracesFolderPath] stringByAppendingPathComponent: [NSString stringWithFormat:@"%lu.log", (unsigned long) timestamp]];
+        BOOL didSave = NO;
 
-        NSData *traceData = [[CrashOpsController toJsonString: [screenDetails toDictionary]] dataUsingEncoding: NSUTF8StringEncoding];
+        if (filePath) {
+            NSData *traceData = [[CrashOpsController toJsonString: [screenDetails toDictionary]] dataUsingEncoding: NSUTF8StringEncoding];
 
-        BOOL didSave = [traceData writeToFile: filePath options: NSDataWritingAtomic error: nil];
+            didSave = [traceData writeToFile: filePath options: NSDataWritingAtomic error: nil];
+        }
+
         if (!didSave) {
             [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to flush screen details to disk. Screen details: %@", screenDetails]];
         }
