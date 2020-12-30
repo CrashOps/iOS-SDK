@@ -29,7 +29,6 @@ static NSString * const lock = @"co_locker";
 @implementation CrashOps
 
 @synthesize appKey;
-@synthesize metadata;
 @synthesize isEnabled;
 @synthesize isTracingScreens;
 
@@ -43,7 +42,7 @@ static NSString * const lock = @"co_locker";
     if (self) {
         isEnabled = YES;
         appKey = @"";
-        metadata = [NSMutableDictionary new];
+        _metadata = [NSMutableDictionary new];
     }
 
     CrashOps* sdkInstance;
@@ -63,9 +62,9 @@ static NSString * const lock = @"co_locker";
     [[KSCrash sharedInstance] deleteAllReports];
 }
 
-- (void)setMetadata:(NSMutableDictionary *)metadata {
+- (void)setMetadata:(NSMutableDictionary *) metadata {
     if ([metadata isKindOfClass: [NSDictionary class]]) {
-        self.metadata = metadata;
+        _metadata = metadata;
     }
 }
 
@@ -86,7 +85,7 @@ static NSString * const lock = @"co_locker";
 }
 
 + (NSString *)sdkVersion {
-    return @"0.3.11";
+    return @"0.3.12";
 }
 
 - (void) crash {
@@ -153,7 +152,7 @@ __strong static CrashOps *_sharedInstance;
 @end
 
 //! Project version number for CrashOps.
-//double CrashOpsVersionNumber = 0.0311;
+//double CrashOpsVersionNumber = 0.0312;
 
 //! Project version string for CrashOps.
-//const unsigned char CrashOpsVersionString[] = "0.03.11";
+//const unsigned char CrashOpsVersionString[] = "0.03.12";
