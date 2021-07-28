@@ -8,6 +8,17 @@
 
 #import <UIKit/UIKit.h>
 
+@interface COThrottler: NSObject
+@end
+
+@interface CrashOpsUtils : NSObject
+
++ (void)replaceImplementationOfKnownSelector:(SEL)originalSelector onClass:(Class)class withBlock:(id)block swizzledSelector:(SEL)swizzledSelector;
+
++ (SEL)swizzledSelectorForSelector:(SEL)selector;
+
+@end
+
 @interface UIViewController (co_CrashOpsExtendedViewController)
 
 -(void) co_onViewAppeared:(BOOL) animated;
@@ -18,3 +29,11 @@
 +(void) swizzleScreenAppearance;
 
 @end
+
+
+@interface UIApplication (co_CrashOpsExtendedResponder)
+
++ (void) swizzleDeviceShake;
+
+@end
+
