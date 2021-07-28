@@ -12,9 +12,9 @@
 #import <Foundation/Foundation.h>
 
 #if COCOAPODS
-#import "SSZipCommon.h"
+#import "ZZZipCommon.h"
 #else
-#import "SSZipCommon.h"
+#import "ZZZipCommon.h"
 #endif
 
 NS_ASSUME_NONNULL_BEGIN

@@ -6,7 +6,7 @@
 //  Copyright (c) Sam Soffes 2010-2015. All rights reserved.
 //
 
-#import "SSZipArchive.h"
+#import "ZZZipArchive.h"
 #include "minizip/mz_compat.h"
 #include "minizip/mz_zip.h"
 #include <zlib.h>
@@ -752,6 +752,7 @@ BOOL _fileIsSymbolicLink(const unz_file_info *fileInfo);
 {
     return [ZZZipArchive createZipFileAtPath:path withFilesAtPaths:paths withPassword:nil];
 }
+
 + (BOOL)createZipFileAtPath:(NSString *)path withContentsOfDirectory:(NSString *)directoryPath {
     return [ZZZipArchive createZipFileAtPath:path withContentsOfDirectory:directoryPath withPassword:nil];
 }
