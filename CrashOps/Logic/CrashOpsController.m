@@ -10,7 +10,7 @@
 #import "CrashOpsController.h"
 #import "DebugToastMessage.h"
 
-#import "SSZipArchive.h"
+#import "ZZZipArchive.h"
 
 #import "AppleCrashReportGenerator.h"
 

@@ -1,6 +1,6 @@
 //
-//  SSZipArchive.h
-//  SSZipArchive
+//  ZZZipArchive.h
+//  ZZZipArchive
 //
 //  Created by Sam Soffes on 7/21/10.
 //  Copyright (c) Sam Soffes 2010-2015. All rights reserved.
@@ -12,9 +12,9 @@
 #import <Foundation/Foundation.h>
 
 #if COCOAPODS
-#import "SSZipCommon.h"
+#import "ZZZipCommon.h"
 #else
-#import "SSZipCommon.h"
+#import "ZZZipCommon.h"
 #endif
 
 NS_ASSUME_NONNULL_BEGIN

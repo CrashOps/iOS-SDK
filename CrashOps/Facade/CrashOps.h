@@ -87,7 +87,7 @@ typedef void(^PreviousReportsHandler)(NSArray *reports);
 /**
 *  Logs non-fatal errors.
 */
--(BOOL) logError:(NSDictionary *) errorDetails;
+-(BOOL) logErrorWithTitle:(NSString *) errorTitle andDetails:(NSDictionary *) errorDetails;
 
 +(BOOL) isRunningOnDebugMode;
 

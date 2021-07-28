@@ -16,15 +16,15 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.3.12"
-  s.summary      = "CrashOps monitors your app's stability and vulnerability."
+  s.version      = "0.3.13"
+  s.summary      = "CrashOps lets you monitor your app's stability and vulnerability by giving you error and crash reports, supported by CrashOps servers."
 
   # This description is used to generate tags and improve search results.
   #   * Think: What does it do? Why did you write it? What is the focus?
   #   * Try to keep it short, snappy and to the point.
   #   * Write the description between the DESC delimiters below.
   #   * Finally, don't worry about the indent, CocoaPods strips it!
-  s.description  = "CrashOps lets you monitor your app's stability and vulnerability by giving you error and crash reports, supported by CrashOps servers."
+  s.description  = "CrashOps lets you monitor your app's stability and vulnerability, by giving you error and crash reports, with a supporting platform by CrashOps servers."
 
   s.homepage     = "https://github.com/CrashOps/iOS-SDK"
   # s.screenshots  = "www.example.com/screenshots_1.gif", "www.example.com/screenshots_2.gif"
@@ -87,7 +87,7 @@ Pod::Spec.new do |s|
   #  Not including the public_header_files will make all headers public.
   #
 
-  s.source_files = "CrashOps/**/*.{swift,h,m,mm,c,cpp}"
+  s.source_files = "CrashOps/**/*.{swift,m,mm,c,h,cpp}"
 # s.exclude_files = "Classes/Exclude"
 
 # s.public_header_files = "CrashOps/**/*.h"

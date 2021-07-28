@@ -72,8 +72,8 @@ static NSString * const lock = @"co_locker";
     [NSException raise:@"CrashOps test exception" format: @""];
 }
 
-- (BOOL) logError:(NSDictionary *)errorDetails {
-    return [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) logError: [NSDictionary dictionaryWithDictionary: errorDetails]];
+- (BOOL) logErrorWithTitle:(NSString *) errorTitle andDetails:(NSDictionary *) errorDetails {
+    return [((CrashOpsController *)([CrashOpsController performSelector: @selector(shared)])) logErrorWithTitle: errorTitle andDetails: [NSDictionary dictionaryWithDictionary: errorDetails]];
 }
 
 +(BOOL)isRunningOnDebugMode {
@@ -85,7 +85,7 @@ static NSString * const lock = @"co_locker";
 }
 
 + (NSString *)sdkVersion {
-    return @"0.3.12";
+    return @"0.3.13";
 }
 
 - (void) crash {
@@ -152,7 +152,7 @@ __strong static CrashOps *_sharedInstance;
 @end
 
 //! Project version number for CrashOps.
-//double CrashOpsVersionNumber = 0.0312;
+//double CrashOpsVersionNumber = 0.0313;
 
 //! Project version string for CrashOps.
-//const unsigned char CrashOpsVersionString[] = "0.03.12";
+//const unsigned char CrashOpsVersionString[] = "0.03.13";
