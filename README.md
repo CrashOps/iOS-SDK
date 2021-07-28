@@ -12,7 +12,7 @@ CrashOps lets you monitor your app's stability and vulnerability by giving you e
 You want to add `pod 'CrashOps'` similar to the following to your Podfile:
 ```
 target 'MyApp' do
-  pod 'CrashOps', '0.3.14'
+  pod 'CrashOps', '0.3.15'
 end
 ```
 Then run a `pod install` in your terminal, or from CocoaPods app.
