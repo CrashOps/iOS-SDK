@@ -7,7 +7,7 @@
 //
 
 #ifndef _CRASHOPS_STUFF
-#define _timestamp_milliseconds() [[NSDate new] timeIntervalSince1970] * 1000
+#define _co_timestamp_milliseconds() [[NSDate new] timeIntervalSince1970] * 1000
 #define _CRASHOPS_STUFF
 #else
 #endif
@@ -15,6 +15,8 @@
 #import <Foundation/Foundation.h>
 #import "ScreenTracer.h"
 #import "ScreenDetails.h"
+
+typedef void (^VoidCallback)(void);
 
 /**
  A private class that is responsible on our core actions.
@@ -34,6 +36,11 @@
 + (CrashOpsController *) shared;
 
 /**
+*  Generates session details of the application running session.
+*/
+-(NSDictionary *) generateSessionDetails;
+
+/**
 *  CrashOps library file system path.
 */
 -(NSString *) crashOpsLibraryPath;
@@ -41,7 +48,7 @@
 /**
 *  Logs non-fatal errors.
 */
-- (BOOL) logError:(NSDictionary *) errorDetails;
+- (BOOL) logErrorWithTitle:(NSString *) errorTitle andDetails:(NSDictionary *) errorDetails;
 
 /**
 *  Notifies that the host app changed its handler.
@@ -49,6 +56,8 @@
 - (void) onHandlerChanged;
 
 -(ScreenTracer *) screenTracer;
+
++ (NSString *) deviceId;
 
 +(BOOL) isDebugModeEnabled;
 
@@ -58,11 +67,15 @@
 
 +(NSString *) toJsonString:(NSDictionary *) jsonDictionary;
 
++(NSData *) toJsonData:(NSDictionary *) jsonDictionary;
+
 -(void) flushToDisk:(ScreenDetails *) screenDetails;
 
 +(NSString *) screenTracesFolderFromSessionId:(NSString *) sessionId;
 
 + (void) logInternalError:(NSString *) sdkError;
+
++(void) asyncLoopArray:(NSArray *) elements iterationBody:(void (^)(id element, VoidCallback carryOn)) iterationBody onDone:(VoidCallback) onDone;
 
 @end
 

@@ -115,64 +115,29 @@ __strong static ModulesAnalytics *_shared;
                     
                     NSData *sha256Data;
                     NSFileManager *fileManager = [NSFileManager defaultManager];
-
-// MARK: - This part ↓ ↓ ↓ is private and intended for internal testing, it's available only in debug mode ⚠️
-//#ifdef DEBUG
-                    if (NO && ModulesAnalytics.isDebugModeEnabled && [requestedBinaryImages count] == 0) {
-                        // Create a mock response
-                        NSInteger maxImagesCount = 3;
-                        for (NSDictionary *pathAndSize in binaryImagesArray) {
-                            NSString *path = [pathAndSize[@"name"] description];
-                            NSInteger sizeInBytes = [pathAndSize[@"size"] longValue];
+                    for (NSDictionary *pathAndSize in requestedBinaryImages) {
+                        NSString *path = [pathAndSize[@"name"] description];
+                        if (![pathAndSize[@"size"] isKindOfClass: [NSNumber class]]) {
+                            continue;
+                        }
+                        NSInteger sizeInBytes = [((NSNumber *)pathAndSize[@"size"]) longValue];
+                        NSNumber *actualSize = [binaryImages objectForKey: path];
+                        
+                        if ([actualSize isKindOfClass: [NSNumber class]] && actualSize.integerValue == sizeInBytes) {
+                            NSString *pathAndSizeString = [NSString stringWithFormat:@"%@+%ld", path, (long)sizeInBytes];
+                            sha256Data = [ModulesAnalytics doSha256:[pathAndSizeString dataUsingEncoding: NSUTF8StringEncoding]];
+                            NSString *uploadRecordPath = [[[ModulesAnalytics shared] historyPath] stringByAppendingPathComponent: [sha256Data md5String]];
                             
-                            if (sizeInBytes < 1000000) {
-                                NSString *pathAndSizeString = [NSString stringWithFormat:@"%@+%ld", path, (long)sizeInBytes];
-                                sha256Data = [ModulesAnalytics doSha256:[pathAndSizeString dataUsingEncoding: NSUTF8StringEncoding]];
-                                NSString *uploadRecordPath = [[[ModulesAnalytics shared] historyPath] stringByAppendingPathComponent: [sha256Data md5String]];
-                                
-                                BOOL isDir = YES;
-                                if(![fileManager fileExistsAtPath: uploadRecordPath isDirectory: &isDir]) {
-                                    // "Never" been uploaded from this device (unless someone deleted this app's folders content)
-                                    [hashes addObject: sha256Data];
-                                    [filteredImages addObject: @{@"name": path, @"size":[NSNumber numberWithInteger:sizeInBytes]}];
-                                }
-                                maxImagesCount -= 1;
-                            }
-
-                            if (maxImagesCount == 0) {
-                                break;
+                            BOOL isDir = YES;
+                            if(![fileManager fileExistsAtPath: uploadRecordPath isDirectory: &isDir]) {
+                                // "Never" been uploaded from this device (unless someone deleted this app's folders content)
+                                [hashes addObject: sha256Data];
+                                [filteredImages addObject: @{@"name": path, @"size":[NSNumber numberWithInteger:sizeInBytes]}];
                             }
                         }
-
-                        CODebugLogArgs(@"Mock 'requestedBinaryImages': %@", [filteredImages description]);
-                    } else {
-//#else
-// MARK: - This part ↑ ↑ ↑ is private and intended for internal testing, it's available only in debug mode ⚠️
-                        for (NSDictionary *pathAndSize in requestedBinaryImages) {
-                            NSString *path = [pathAndSize[@"name"] description];
-                            if (![pathAndSize[@"size"] isKindOfClass: [NSNumber class]]) {
-                                continue;
-                            }
-                            NSInteger sizeInBytes = [((NSNumber *)pathAndSize[@"size"]) longValue];
-                            NSNumber *actualSize = [binaryImages objectForKey: path];
-
-                            if ([actualSize isKindOfClass: [NSNumber class]] && actualSize.integerValue == sizeInBytes) {
-                                NSString *pathAndSizeString = [NSString stringWithFormat:@"%@+%ld", path, (long)sizeInBytes];
-                                sha256Data = [ModulesAnalytics doSha256:[pathAndSizeString dataUsingEncoding: NSUTF8StringEncoding]];
-                                NSString *uploadRecordPath = [[[ModulesAnalytics shared] historyPath] stringByAppendingPathComponent: [sha256Data md5String]];
-
-                                BOOL isDir = YES;
-                                if(![fileManager fileExistsAtPath: uploadRecordPath isDirectory: &isDir]) {
-                                    // "Never" been uploaded from this device (unless someone deleted this app's folders content)
-                                    [hashes addObject: sha256Data];
-                                    [filteredImages addObject: @{@"name": path, @"size":[NSNumber numberWithInteger:sizeInBytes]}];
-                                }
-                            }
-                        }
-
-                        CODebugLogArgs(@"Sending requested binary images: %@", [filteredImages description]);
-//#endif
                     }
+                    
+                    CODebugLogArgs(@"Sending requested binary images: %@", [filteredImages description]);
 
                     if ([filteredImages count]) {
                         [[ModulesAnalytics shared] uploadBinaryImages: filteredImages callback:^(NSArray *responses) {

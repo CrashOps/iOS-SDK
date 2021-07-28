@@ -29,7 +29,7 @@
 
         //[co_ToastMessage show: [_viewDetails description] delayInSeconds: 5 onDone: nil];
 
-        _timestamp = (NSUInteger)_timestamp_milliseconds();
+        _timestamp = (NSUInteger)_co_timestamp_milliseconds();
     }
 
     return self;

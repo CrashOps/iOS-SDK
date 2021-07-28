@@ -10,7 +10,7 @@
 #import "CrashOpsController.h"
 #import "DebugToastMessage.h"
 
-#import "ZZZipArchive.h"
+#import "ModulesAnalytics.h"
 
 #import "AppleCrashReportGenerator.h"
 
@@ -28,7 +28,6 @@
 #import "CrashOpsExtendedViewController+UIViewController.h"
 
 typedef void(^FilesUploadCompletion)(NSInteger filesCount);
-
 typedef void(^LogsUploadCompletion)(NSArray *reports);
 
 @interface CrashOpsController()
@@ -195,6 +194,7 @@ __strong static CrashOpsController *_shared;
 #endif
 }
 
+/// Indicator for debug mode, it also can be turned on via config PLIST file
 + (BOOL)isDebugModeEnabled {
     return _shared.isDebugModeEnabled;
 }
@@ -257,7 +257,14 @@ __strong static CrashOpsController *_shared;
             crashMonitorAPI->setEnabled(YES);
         }
 
-        [self sendPresence];
+        [self sendPresence:^(BOOL didSucceed) {
+            if (didSucceed) {
+                dispatch_after(dispatch_time(DISPATCH_TIME_NOW, (int64_t)(10 * NSEC_PER_SEC)), dispatch_get_main_queue(), ^{
+                    [ModulesAnalytics initiateWithController: self];
+                });
+            }
+        }];
+
         [self uploadLogs];
     } else {
         if (co_oldHandler != nil) {
@@ -311,14 +318,11 @@ __strong static CrashOpsController *_shared;
     //CODebugLogArgs(@"App loaded, isJailbroken = %d", CrashOpsController.isJailbroken);
 }
 
--(void) sendPresence {
-    if (!isEnabled) return;
-    if (![[CrashOpsController shared].appKey length]) return;
+-(NSDictionary *) generateSessionDetails {
+    if (!isEnabled) return @{};
+    if (![[CrashOpsController shared].appKey length]) return @{};
 
-    if (didSendPresence) return;
-    didSendPresence = YES;
-
-    NSUInteger timestamp = (NSUInteger)_timestamp_milliseconds();
+    NSUInteger timestamp = (NSUInteger)_co_timestamp_milliseconds();
 
     NSMutableDictionary *deviceInfo = [[CrashOpsController getDeviceInfo] mutableCopy];
     NSDictionary *ksCrashSystemInfo = [[KSCrash sharedInstance] systemInfo];
@@ -326,12 +330,10 @@ __strong static CrashOpsController *_shared;
     if ([ksCrashSystemInfo count]) {
         NSArray *keys = @[@"cpuType", @"cpuSubType", @"cpuArchitecture", @"storageSize", @"memorySize", @"usableMemory", @"freeMemory", @"kernelVersion", @"isJailbroken"];
         for (NSString *key in keys) {
-            BOOL didAdd = [deviceInfo
-             co_setOptionalObject: [ksCrashSystemInfo objectForKey: key]
-             forKey: key];
+            BOOL didAdd = [deviceInfo co_setOptionalObject: [ksCrashSystemInfo objectForKey: key] forKey: key];
 
             if (!didAdd) {
-                CODebugLog(@"Hmmmm...");
+                CODebugLog(@"Hmmmm... Failed to add 'ksCrashSystemInfo'");
             }
         }
     }
@@ -366,10 +368,37 @@ __strong static CrashOpsController *_shared;
                                      @"iosVersion": [CrashOpsController iosVersion],
     };
 
-    NSMutableURLRequest *request = [CrashOpsController prepareRequestWithBody: sessionDetails forEndpoint: @"ping"];
+    return sessionDetails;
+}
+
+-(void) sendPresence:(void(^)(BOOL didSucceed))onDone {
+    if (!onDone) {
+        return;
+    }
+
+    if (!isEnabled) {
+        onDone(NO);
+        return;
+    }
+
+    if (![[CrashOpsController shared].appKey length]) {
+        onDone(NO);
+        return;
+    }
+
+    if (didSendPresence) {
+        onDone(NO);
+        return;
+    }
+
+    didSendPresence = YES;
+
+    NSDictionary *sessionDetails = [self generateSessionDetails];
+    NSMutableURLRequest *request = [ModulesAnalytics prepareRequestWithBody: sessionDetails forEndpoint: @"ping"];
 
     if (!request) {
         [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for sending ping: %@", sessionDetails]];
+        onDone(NO);
         return;
     }
 
@@ -379,7 +408,7 @@ __strong static CrashOpsController *_shared;
         NSString *responseString = [[NSString alloc] initWithData: returnedData encoding: NSUTF8StringEncoding];
         CODebugLogArgs(@"%@", responseString);
 
-        BOOL wasRequestSuccessful = false;
+        BOOL wasRequestSuccessful = NO;
         NSInteger responseStatusCode = 100;
         if (response && [response isKindOfClass: [NSHTTPURLResponse class]]) {
             responseStatusCode = ((NSHTTPURLResponse *)response).statusCode;
@@ -404,6 +433,8 @@ __strong static CrashOpsController *_shared;
                 
                 [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to send session details, response string: %@, file path: %@", responseString, sessionDetails]];
             }
+
+            onDone(wasRequestSuccessful);
         }];
     }];
 
@@ -627,7 +658,7 @@ __strong static CrashOpsController *_shared;
                     [jsonDictionary co_setOptionalObject: allTraces forKey: @"screenTraces"];
                 }
 
-                NSMutableURLRequest *request = [CrashOpsController prepareRequestWithBody: jsonDictionary forEndpoint: @"reports"];
+                NSMutableURLRequest *request = [ModulesAnalytics prepareRequestWithBody: jsonDictionary forEndpoint: @"reports"];
 
                 if (!request) {
                     [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for file upload, file path: %@", reportPath]];
@@ -793,7 +824,7 @@ __strong static CrashOpsController *_shared;
                     continue;
                 }
 
-                NSMutableURLRequest *request = [CrashOpsController prepareRequestWithBody: jsonDictionary forEndpoint: @"reports"];
+                NSMutableURLRequest *request = [ModulesAnalytics prepareRequestWithBody: jsonDictionary forEndpoint: @"reports"];
 
                 if (!request) {
                     [CrashOpsController logInternalError: [NSString stringWithFormat:@"Failed to make request for file upload, file path: %@", reportPath]];
@@ -877,6 +908,7 @@ __strong static CrashOpsController *_shared;
 
         NSDictionary *kzCrashDictionary = [CrashOpsController toJsonDictionary: logFileJson];
         NSMutableDictionary *crashOpsDictionary = [CrashOpsController addCrashOpsConstantFields: kzCrashDictionary];
+        crashOpsDictionary[@"isFatal"] = @YES;
 
         BOOL didAdd = [allReports co_setOptionalObject: crashOpsDictionary forKey: logFileUrlPath];
         if (!didAdd) {
@@ -1007,30 +1039,6 @@ __strong static CrashOpsController *_shared;
     return reportCopy;
 }
 
-+ (NSMutableURLRequest *) prepareRequestWithBody:(NSDictionary *) bodyDictionary forEndpoint: (NSString *) apiEndpoint {
-    NSData *postBody = [CrashOpsController toJsonData: bodyDictionary];
-    if (![postBody length]) {
-        return nil;
-    }
-
-    NSString *serverUrlString = [NSString stringWithFormat: @"https://crashops.com/api/%@", apiEndpoint];
-
-    NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL: [NSURL URLWithString: serverUrlString]];
-
-    [request setCachePolicy: NSURLRequestReloadIgnoringLocalCacheData];
-    [request setHTTPShouldHandleCookies: NO];
-    [request setTimeoutInterval: 60];
-    [request setHTTPMethod: @"POST"];
-    [request setValue: @"gzip" forHTTPHeaderField: @"Accept-Encoding"];
-
-    NSString *contentType = [NSString stringWithFormat:@"application/json; charset=utf-8"];
-    [request setValue: contentType forHTTPHeaderField:@"Content-Type"];
-
-    [request setHTTPBody: postBody];
-
-    return request;
-}
-
 - (void) configureAdvancedSettings {
     KSCrash* handler = [KSCrash sharedInstance];
 
@@ -1058,7 +1066,7 @@ __strong static CrashOpsController *_shared;
 // Saves extra info for this new incident
 -(void) onEventFileCreated:(NSString *) eventId {
     //   the `eventId` will be located under "report"->"id"
-    NSLog(@"New event ID saved: %@", eventId);
+    CODebugLogArgs(@"New event ID saved: %@", eventId);
 
     NSString *eventIdFile = [[self eventsFolderPath] stringByAppendingPathComponent: eventId];
     if (eventIdFile) {
@@ -1103,14 +1111,19 @@ __strong static CrashOpsController *_shared;
  Logs immediately a non-fatal error details with built-in screen traces details into a file.
  Then CrashOps attempts to upload with no farther wating.
  */
-- (BOOL) logError:(NSDictionary *) errorDetails {
-    if (!errorDetails) return NO;
-    if (![errorDetails count]) return NO;
+- (BOOL) logErrorWithTitle:(NSString *) errorTitle andDetails:(NSDictionary *) errorDetails {
+    if (![errorDetails count]) {
+        errorDetails = @{};
+    }
+    
+    if (![errorTitle length]) {
+        errorTitle = @"missing title";
+    }
     
     NSDate *now = [NSDate date];
     NSTimeInterval timeMilliseconds = [now timeIntervalSince1970] * 1000;
     NSInteger timestamp = ((NSInteger) timeMilliseconds);
-    
+
     NSString *sessionId = appSessionId;
     [[self coGlobalOperationQueue] addOperationWithBlock:^{
         NSString *nowString = [CrashOpsController stringFromDate: now withFormat: @"yyyy-MM-dd-HH-mm-ss-SSS_ZZZ"];
@@ -1123,6 +1136,7 @@ __strong static CrashOpsController *_shared;
         NSArray *breadcrumbs = [ScreenTracer tracesReportForSessionId: sessionId];
         
         NSDictionary *jsonDictionary = @{@"errorDetails": errorDetails,
+                                         @"error": errorTitle,
                                          @"report":@{@"id": [[NSUUID UUID] UUIDString],
                                                      @"timestamp": [NSNumber numberWithInteger: timestamp],
                                                      @"time": nowString
@@ -1539,12 +1553,19 @@ static void ourExceptionHandler(NSException *exception) {
         return nil;
     }
 
+    NSMutableDictionary *mutableDictionary = [NSMutableDictionary dictionaryWithDictionary: jsonDictionary];
+    for (id key in [jsonDictionary allKeys]) {
+        if (!jsonDictionary[key]) {
+            [mutableDictionary removeObjectForKey: key];
+        }
+    }
+
     NSData *jsonData;
     NSError *error;
 
     @try {
         // Instead of NSJSONWritingPrettyPrinted, we're not using any option.
-        jsonData = [NSJSONSerialization dataWithJSONObject: jsonDictionary options: kNilOptions error: &error];
+        jsonData = [NSJSONSerialization dataWithJSONObject: mutableDictionary options: kNilOptions error: &error];
     } @catch (NSException *exception) {
         error = [NSError errorWithDomain: kSdkName code: 1 userInfo: @{@"exception":exception}];
     } @finally {
@@ -1707,6 +1728,37 @@ NSUncaughtExceptionHandler *exceptionHandlerPtr = &ourExceptionHandler;
     }
 
     return [g_dateFormatter stringFromDate:date];
+}
+
++(void) asyncLoopArray:(NSArray *) elements iterationBody:(void (^)(id element,VoidCallback carryOn)) iterationBody onDone:(VoidCallback) onDone {
+    if (!onDone) {
+        return;
+    }
+
+    if (elements.count == 0) {
+        onDone();
+        return;
+    }
+
+    NSArray *copied = [NSArray arrayWithArray:elements];
+    [CrashOpsController recursivelyIterate:copied index:0 iterationBody:iterationBody onCompleted:^{
+        onDone();
+    }];
+}
+
++(void) recursivelyIterate:(NSArray *) elements index:(NSInteger) index iterationBody:(void (^)(id element,id carryOn))iterationBody onCompleted:(void (^)(void)) onCompleted {
+    if (!onCompleted) {
+        return;
+    }
+
+    if (index >= elements.count || index < 0) {
+        onCompleted();
+        return;
+    }
+
+    iterationBody([elements objectAtIndex:index], ^{
+        [CrashOpsController recursivelyIterate:elements index:(index + 1) iterationBody:iterationBody onCompleted:onCompleted];
+    });
 }
 
 @end
