@@ -85,7 +85,7 @@ static NSString * const lock = @"co_locker";
 }
 
 + (NSString *)sdkVersion {
-    return @"0.3.15";
+    return @"0.3.16";
 }
 
 - (void) crash {
@@ -152,7 +152,7 @@ __strong static CrashOps *_sharedInstance;
 @end
 
 //! Project version number for CrashOps.
-//double CrashOpsVersionNumber = 0.0315;
+//double CrashOpsVersionNumber = 0.0316;
 
 //! Project version string for CrashOps.
-//const unsigned char CrashOpsVersionString[] = "0.03.15";
+//const unsigned char CrashOpsVersionString[] = "0.03.16";
