@@ -51,7 +51,8 @@
 
 @property (nonatomic, strong) NSOperationQueue* analyticsOperationQueue;
 @property (nonatomic, strong) CrashOpsController* crashOpsController;
-@property (nonatomic, strong) NSString *historyPath;
+@property (nonatomic, strong) NSString *uploadedHistoryPath;
+@property (nonatomic, strong) NSString *sentHistoryPath;
 
 @end
 
@@ -84,7 +85,12 @@ __strong static ModulesAnalytics *_shared;
     return self;
 }
 
-+ (NSData *) doSha256:(NSData *)dataIn {
++(NSString *) encode:(NSString *) original {
+    NSData *sha256Data = [ModulesAnalytics doSha256:[original dataUsingEncoding: NSUTF8StringEncoding]];
+    return [sha256Data md5String];
+}
+
++(NSData *) doSha256:(NSData *)dataIn {
     NSMutableData *macOut = [NSMutableData dataWithLength: CC_SHA256_DIGEST_LENGTH];
     unsigned char *result = CC_SHA256(dataIn.bytes, dataIn.length, macOut.mutableBytes);
     CODebugLog([NSString stringWithCharacters: result length: dataIn.length]);
@@ -98,7 +104,7 @@ __strong static ModulesAnalytics *_shared;
 
 + (void)initiateWithController:(CrashOpsController *) controller {
     [ModulesAnalytics shared].crashOpsController = controller;
-    [ModulesAnalytics aggregateAvailableFrameworks:^(NSDictionary *binaryImages) {
+    [ModulesAnalytics aggregateNewAvailableFrameworks:^(NSDictionary *binaryImages) {
         [[[ModulesAnalytics shared] analyticsOperationQueue] addOperationWithBlock:^{
             NSMutableArray *binaryImagesArray = [NSMutableArray new];
 
@@ -115,6 +121,8 @@ __strong static ModulesAnalytics *_shared;
                     
                     NSData *sha256Data;
                     NSFileManager *fileManager = [NSFileManager defaultManager];
+
+
                     for (NSDictionary *pathAndSize in requestedBinaryImages) {
                         NSString *path = [pathAndSize[@"name"] description];
                         if (![pathAndSize[@"size"] isKindOfClass: [NSNumber class]]) {
@@ -126,7 +134,7 @@ __strong static ModulesAnalytics *_shared;
                         if ([actualSize isKindOfClass: [NSNumber class]] && actualSize.integerValue == sizeInBytes) {
                             NSString *pathAndSizeString = [NSString stringWithFormat:@"%@+%ld", path, (long)sizeInBytes];
                             sha256Data = [ModulesAnalytics doSha256:[pathAndSizeString dataUsingEncoding: NSUTF8StringEncoding]];
-                            NSString *uploadRecordPath = [[[ModulesAnalytics shared] historyPath] stringByAppendingPathComponent: [sha256Data md5String]];
+                            NSString *uploadRecordPath = [[[ModulesAnalytics shared] uploadedHistoryPath] stringByAppendingPathComponent: [sha256Data md5String]];
                             
                             BOOL isDir = YES;
                             if(![fileManager fileExistsAtPath: uploadRecordPath isDirectory: &isDir]) {
@@ -135,9 +143,11 @@ __strong static ModulesAnalytics *_shared;
                                 [filteredImages addObject: @{@"name": path, @"size":[NSNumber numberWithInteger:sizeInBytes]}];
                             }
                         }
+                        
+                        
+                        CODebugLogArgs(@"Sending requested binary images: %@", [filteredImages description]);
+                        
                     }
-                    
-                    CODebugLogArgs(@"Sending requested binary images: %@", [filteredImages description]);
 
                     if ([filteredImages count]) {
                         [[ModulesAnalytics shared] uploadBinaryImages: filteredImages callback:^(NSArray *responses) {
@@ -155,7 +165,7 @@ __strong static ModulesAnalytics *_shared;
 
                                 if (wasRequestSuccessful) {
                                     NSData *sha256Data = hashes[idx];
-                                    NSString *uploadRecordPath = [[[ModulesAnalytics shared] historyPath] stringByAppendingPathComponent: [sha256Data md5String]];
+                                    NSString *uploadRecordPath = [[[ModulesAnalytics shared] uploadedHistoryPath] stringByAppendingPathComponent: [sha256Data md5String]];
 
                                     BOOL isDir = YES;
                                     BOOL isCreated = NO;
@@ -183,14 +193,21 @@ __strong static ModulesAnalytics *_shared;
     }];
 }
 
-+ (BOOL) doesExist:(NSData *) hash {
-    NSString *uploadRecordPath = [[[ModulesAnalytics shared] historyPath] stringByAppendingPathComponent: [hash md5String]];
++ (BOOL) didAlreadySend:(NSString *) encoded {
+    NSString *sentImageRecordPath = [[[ModulesAnalytics shared] sentHistoryPath] stringByAppendingPathComponent: encoded];
+
+    BOOL isDir = YES;
+    return [[NSFileManager defaultManager] fileExistsAtPath: sentImageRecordPath isDirectory: &isDir];
+}
+
++ (BOOL) didAlreadyUpload:(NSData *) hash {
+    NSString *uploadRecordPath = [[[ModulesAnalytics shared] uploadedHistoryPath] stringByAppendingPathComponent: [hash md5String]];
 
     BOOL isDir = YES;
     return [[NSFileManager defaultManager] fileExistsAtPath: uploadRecordPath isDirectory: &isDir];
 }
 
-+(void) aggregateAvailableFrameworks:(void(^)(NSDictionary * binaryImages)) completion {
++(void) aggregateNewAvailableFrameworks:(void(^)(NSDictionary * binaryImages)) completion {
     if (!completion) { return; }
 
      NSFileManager *fileManager = [NSFileManager defaultManager];
@@ -204,7 +221,14 @@ __strong static ModulesAnalytics *_shared;
             if (!moduleName) continue;
             
             NSInteger frameworkSize = [fileManager totalSizeOfFolder: framework.bundlePath];
-            binaryImages[framework.resourcePath] = [NSNumber numberWithInteger: frameworkSize];
+            // Check if it was already sent, before adding
+            NSString *pathAndSizeString = [NSString stringWithFormat:@"%@+%ld", framework.resourcePath, (long) frameworkSize];
+            NSString *encoded = [ModulesAnalytics encode: pathAndSizeString];
+
+            BOOL isNew = ![self didAlreadySend: encoded];
+            if (isNew) {
+                binaryImages[framework.resourcePath] = [NSNumber numberWithInteger: frameworkSize];
+            }
         }
         
         [[NSOperationQueue mainQueue] addOperationWithBlock:^{
@@ -231,28 +255,27 @@ __strong static ModulesAnalytics *_shared;
 }
 
 + (NSMutableURLRequest *) prepareRequestWithEndpoint:(NSString *) apiEndpoint contentType:(NSString *) contentType {
-//    NSString *serverUrlString = [NSString stringWithFormat: @"https://crashops.com/api/%@", apiEndpoint];
-    NSString *serverUrlString = [NSString stringWithFormat: @"https://unity1.zcps.co/crashops/%@", apiEndpoint];
-
+    NSString *serverUrlString = [NSString stringWithFormat: @"https://crashops.com/api/%@", apiEndpoint];
+    
     NSMutableURLRequest *request = [NSMutableURLRequest requestWithURL: [NSURL URLWithString: serverUrlString]];
-
+    
     [request setCachePolicy: NSURLRequestReloadIgnoringLocalCacheData];
     [request setHTTPShouldHandleCookies: NO];
     [request setTimeoutInterval: 60];
     [request setHTTPMethod: @"POST"];
     [request setValue: @"gzip" forHTTPHeaderField: @"Accept-Encoding"];
-
+    
     [request setValue: contentType forHTTPHeaderField:@"Content-Type"];
-
+    
     return request;
 }
 
--(NSString *) historyPath {
-    if (_historyPath != nil) {
-        return _historyPath;
+-(NSString *) sentHistoryPath {
+    if (_sentHistoryPath != nil) {
+        return _sentHistoryPath;
     }
 
-    NSString *path = [crashOpsController.crashOpsLibraryPath stringByAppendingPathComponent: @"HistoryPath"];
+    NSString *path = [crashOpsController.crashOpsLibraryPath stringByAppendingPathComponent: @"Sent"];
 
     BOOL isDir = YES;
     BOOL isCreated = NO;
@@ -269,10 +292,38 @@ __strong static ModulesAnalytics *_shared;
     }
 
     if (isCreated) {
-        _historyPath = path;
+        _sentHistoryPath = path;
     }
 
-    return _historyPath;
+    return _sentHistoryPath;
+}
+
+-(NSString *) uploadedHistoryPath {
+    if (_uploadedHistoryPath != nil) {
+        return _uploadedHistoryPath;
+    }
+
+    NSString *path = [crashOpsController.crashOpsLibraryPath stringByAppendingPathComponent: @"Uploaded"];
+
+    BOOL isDir = YES;
+    BOOL isCreated = NO;
+
+    NSFileManager *fileManager = [NSFileManager defaultManager];
+    if(![fileManager fileExistsAtPath: path isDirectory: &isDir]) {
+        if(![fileManager createDirectoryAtPath: path withIntermediateDirectories:YES attributes:nil error:NULL]) {
+            CODebugLogArgs(@"Error: Failed to create folder %@", path);
+        } else {
+            isCreated = YES;
+        }
+    } else {
+        isCreated = YES;
+    }
+
+    if (isCreated) {
+        _uploadedHistoryPath = path;
+    }
+
+    return _uploadedHistoryPath;
 }
 
 -(void) sendBinaryInfo:(NSArray *) binaryImages callback: (void(^)(NSArray * requestedBinaryImages)) callback {
@@ -308,6 +359,30 @@ __strong static ModulesAnalytics *_shared;
             NSArray *requestedBinaryImages = [[CrashOpsController toJsonDictionary: responseString] objectForKey: @"requestedBinaryImages"];
             if (!requestedBinaryImages) {
                 requestedBinaryImages = @[];
+            }
+
+            NSFileManager *fileManager = [NSFileManager defaultManager];
+
+            for (NSDictionary *sentDetails in binaryImages) {
+                NSString *path = sentDetails[@"name"];
+                NSInteger frameworkSize = [sentDetails[@"size"] integerValue];
+                NSString *pathAndSizeString = [NSString stringWithFormat:@"%@+%ld", path, (long) frameworkSize];
+
+                BOOL isDir = YES;
+                BOOL isCreated = NO;
+
+                NSString *encoded = [ModulesAnalytics encode: pathAndSizeString];
+                NSString *sentRecordPath = [[[ModulesAnalytics shared] sentHistoryPath] stringByAppendingPathComponent: encoded];
+
+                if(![fileManager fileExistsAtPath: sentRecordPath isDirectory: &isDir]) {
+                    if(![fileManager createDirectoryAtPath: sentRecordPath withIntermediateDirectories:YES attributes:nil error:NULL]) {
+                        CODebugLogArgs(@"Error in saving sent record: Failed to create folder %@", sentRecordPath);
+                    } else {
+                        isCreated = YES;
+                    }
+                } else {
+                    isCreated = YES;
+                }
             }
 
             callback(requestedBinaryImages);
@@ -387,9 +462,8 @@ __strong static ModulesAnalytics *_shared;
     NSString *boundary = [ModulesAnalytics generateBoundaryString];
 
     NSString *apiEndpoint = @"binaryImages/upload";
-
-    //    NSString *serverUrlString = [NSString stringWithFormat: @"https://crashops.com/api/%@", apiEndpoint];
-    NSString *serverUrlString = [NSString stringWithFormat: @"https://unity1.zcps.co/crashops/%@", apiEndpoint];
+    NSString *serverUrlString = [NSString stringWithFormat: @"https://crashops.com/api/%@", apiEndpoint];
+    
     NSURL *url = [NSURL URLWithString: serverUrlString];
     
     // configure the request

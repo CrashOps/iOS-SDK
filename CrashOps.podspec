@@ -16,7 +16,7 @@ Pod::Spec.new do |s|
   #
 
   s.name         = "CrashOps"
-  s.version      = "0.3.15"
+  s.version      = "0.3.16"
   s.summary      = "CrashOps lets you monitor your app's stability and vulnerability by giving you error and crash reports, supported by CrashOps servers."
 
   # This description is used to generate tags and improve search results.
